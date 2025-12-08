@@ -130,6 +130,7 @@ SimuLock - Deadlock Detection Simulator/
 │   ├── 📄 Loading_Page.png         # 📸 Loading screen screenshot
 │   └── 📄 Background.png           # 🖼️ Background image asset
 ├── 📄 .gitignore                   # 🚫 Git ignore rules
+├── 📄 vercel.json                  # ⚡ Vercel deployment configuration
 └── 📄 README.md                    # 📖 Project documentation
 ```
 <br>
