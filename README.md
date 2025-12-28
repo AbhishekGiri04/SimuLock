@@ -119,7 +119,6 @@ SimuLock/
 │   └── 📄 requirements.txt         # 📋 Python dependencies
 ├── 📂 docs/                        # 📸 Documentation and screenshots
 │   ├── 📄 About_Page.png           # 📸 About page screenshot
-│   ├── 📄 Background.png           # 🖼️ Background image asset
 │   ├── 📄 Contact_Page.png         # 📸 Contact page screenshot
 │   ├── 📄 Home_Page.png            # 📸 Main simulator screenshot
 │   └── 📄 Loading_Page.png         # 📸 Loading screen screenshot
@@ -130,7 +129,7 @@ SimuLock/
 │   │   ├── 📄 103.png              # 👤 LockSmith character face 3
 │   │   ├── 📄 104.png              # 👤 LockSmith character face 4
 │   │   ├── 📄 105.png              # 👤 LockSmith character face 5
-│   │   ├── 📄 AbhishekGiri.jpg     # 👨💻 Developer photo
+│   │   ├── 📄 AbhishekGiri.jpg     # 💻 Developer photo
 │   │   └── 📄 background.png       # 🌅 Background image
 │   ├── 📂 css/                     # 🎨 Stylesheets
 │   │   └── 📄 style.css            # 🎨 Custom styles and animations
