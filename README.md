@@ -145,6 +145,7 @@ SimuLock/
 │   ├── 📄 index.html               # 🏠 Main application interface
 │   └── 📄 loading.html             # ⏳ Loading screen
 ├── 📄 .gitignore                   # 🚫 Git ignore rules
+├── 📄 .mailmap                     # 👤 Git author mapping
 ├── 📄 README.md                    # 📖 Project documentation
 ├── 📄 start.sh                     # 🚀 Automated startup script
 └── 📄 vercel.json                  # ⚡ Vercel deployment configuration
