@@ -12,11 +12,14 @@
   <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white"/>
   <img src="https://img.shields.io/badge/Socket.IO-010101?style=for-the-badge&logo=socket.io&logoColor=white"/>
 </p>
+<br>
 
 ---
 
 ## 📖 Problem Statement
 Operating system students face significant challenges in understanding deadlock concepts, process synchronization, and resource allocation mechanisms. Traditional theoretical approaches lack hands-on experience and visual feedback required for comprehensive learning.
+
+<br>
 
 ---
 
@@ -28,6 +31,7 @@ SimuLock is a comprehensive educational platform built to:
 - 🎮 **Auto Simulation** for quick demonstration and learning
 - 📈 **Live Resource Allocation** with binary semaphore implementation
 - 🌐 **Web-based Interface** accessible from any modern browser
+<br>
 
 ---  
 
@@ -43,23 +47,56 @@ SimuLock is a comprehensive educational platform built to:
 ✅  **LockSmith Character Guide** with voice assistance  
 ✅  **Professional contact system** with email integration  
 
+<br>
+
 ---  
 
 ## 🛠️ Tech Stack
 
 <div align="center">
 
-| 🖥️ Technology | ⚙️ Description |
-|---------------|----------------|
-| ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white) | Core programming language for backend logic |
-| ![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white) | Lightweight web framework and API server |
-| ![Socket.IO](https://img.shields.io/badge/Socket.IO-010101?style=for-the-badge&logo=socket.io&logoColor=white) | Real-time bidirectional communication |
-| ![NetworkX](https://img.shields.io/badge/NetworkX-FF6B6B?style=for-the-badge&logo=python&logoColor=white) | Graph algorithms for deadlock detection |
-| ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black) | Interactive frontend functionality |
-| ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) | Modern utility-first CSS framework |
-| ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white) | Semantic markup and structure |
+<table>
+<thead>
+<tr>
+<th>🖥️ Technology</th>
+<th>⚙️ Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white"/></td>
+<td>Core programming language for backend logic</td>
+</tr>
+<tr>
+<td><img src="https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white"/></td>
+<td>Lightweight web framework and API server</td>
+</tr>
+<tr>
+<td><img src="https://img.shields.io/badge/Socket.IO-010101?style=for-the-badge&logo=socket.io&logoColor=white"/></td>
+<td>Real-time bidirectional communication</td>
+</tr>
+<tr>
+<td><img src="https://img.shields.io/badge/NetworkX-FF6B6B?style=for-the-badge&logo=python&logoColor=white"/></td>
+<td>Graph algorithms for deadlock detection</td>
+</tr>
+<tr>
+<td><img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black"/></td>
+<td>Interactive frontend functionality</td>
+</tr>
+<tr>
+<td><img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white"/></td>
+<td>Modern utility-first CSS framework</td>
+</tr>
+<tr>
+<td><img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white"/></td>
+<td>Semantic markup and structure</td>
+</tr>
+</tbody>
+</table>
 
 </div>
+
+<br>
 
 ---
 
@@ -111,39 +148,51 @@ SimuLock/
 ├── 📄 start.sh                     # 🚀 Automated startup script
 └── 📄 vercel.json                  # ⚡ Vercel deployment configuration
 ```
+<br>
 
----
-
-## 📸 Application Screenshots
+## 📸 Preview Images
 
 | 📍 Page / Feature | 📸 Screenshot |
 |:------------------|:--------------|
-| **Loading Screen** | ![Loading Screen](docs/Loading_Page.png) |
-| **Main Simulator** | ![Home Page](docs/Home_Page.png) |
-| **About Page** | ![About Page](docs/About_Page.png) |
-| **Contact Page** | ![Contact Page](docs/Contact_Page.png) |
+| Loading Screen | ![Loading Screen](docs/Loading_Page.png) |
+| Main Simulator | ![Home Page](docs/Home_Page.png) |
+| About Page | ![About Page](docs/About_Page.png) |
+| Contact Page | ![Contact Page](docs/Contact_Page.png) |
+
+<br>
 
 ---
 
-## 🚀 Quick Start
+## 📦 How to Run
 
 ### 📌 Prerequisites
 - ✅ **Python 3.8+** installed
 - ✅ **pip** package manager
 - ✅ **Modern web browser** (Chrome, Firefox, Safari, Edge)
 
-### 🎯 Option 1: Automated Setup (Recommended)
+<br>
 
-```bash
-# Clone the repository
-git clone https://github.com/abhishekgiri04/SimuLock.git
-cd SimuLock
+---  
 
-# Run the automated startup script
-./start.sh
-```
+### 🚀 Quick Start
 
-### 🔧 Option 2: Manual Setup
+1. Clone and setup environment:
+
+   ```bash
+   git clone https://github.com/abhishekgiri04/SimuLock.git
+   cd SimuLock
+   
+   # Run the automated startup script
+   ./start.sh
+   ```
+
+2. Access the application:
+
+   ```
+   http://localhost:5004
+   ```
+
+### 🔧 Manual Setup
 
 ```bash
 # Clone the repository
@@ -168,16 +217,13 @@ pip install -r requirements.txt
 # Start the server
 python app.py
 ```
-
-### 🌐 Access the Application
-```
-http://localhost:5004
-```
+<br>
 
 ---
 
 ## 📖 Core Components
 
+### Backend Components
 * **app.py** — Flask server with Socket.IO integration and API endpoints
 * **deadlock_detector.py** — Wait-for graph and cycle detection algorithms
 * **process.py** — Process state management and synchronization
@@ -185,9 +231,14 @@ http://localhost:5004
 * **simulator.py** — Main simulation controller and logic
 * **banker.py** — Banker's algorithm for deadlock prevention
 * **contact_handler.py** — Professional email contact system
+
+### Frontend Components
 * **index.html** — Interactive web interface with embedded JavaScript
 * **graph.js** — SVG-based graph visualization utilities
 * **app.js** — Real-time communication and UI updates
+* **simulator.js** — Simulation control logic
+
+<br>
 
 ---
 
@@ -214,6 +265,45 @@ POST /api/detect           # Manual deadlock detection
 POST /api/recover          # Deadlock recovery strategies
 POST /api/contact          # Send contact message
 ```
+<br>
+
+---
+
+## 🧪 Testing
+
+```bash
+# Test server startup
+cd backend
+python app.py
+# Should show: "🚀 Server starting on http://localhost:5004"
+
+# Test API endpoints
+curl http://localhost:5004/
+curl http://localhost:5004/api/processes
+curl -X POST http://localhost:5004/api/auto_simulate
+```
+
+## ⚠️ Common Issues
+
+**Port 5004 already in use:**
+```bash
+# Windows
+netstat -ano | findstr :5004
+# Mac/Linux
+lsof -ti:5004 | xargs kill
+```
+
+**Module not found errors:**
+```bash
+cd backend && pip install -r requirements.txt
+```
+
+**Virtual environment issues:**
+```bash
+cd backend && rm -rf venv && python3 -m venv venv
+source venv/bin/activate && pip install -r requirements.txt
+```
+<br>
 
 ---
 
@@ -244,55 +334,7 @@ POST /api/contact          # Send contact message
 - **Recovery Strategies** - Test different deadlock recovery methods
 - **Professional Logging** - Download or copy simulation logs
 
----
-
-## 🧪 Testing & Troubleshooting
-
-### ✅ Test Server Startup
-```bash
-cd backend
-python app.py
-# Should show: "🚀 Server starting on http://localhost:5004"
-```
-
-### 🔍 Test API Endpoints
-```bash
-# Test basic connectivity
-curl http://localhost:5004/
-
-# Test system state
-curl http://localhost:5004/api/processes
-
-# Test auto simulation
-curl -X POST http://localhost:5004/api/auto_simulate
-```
-
-### ⚠️ Common Issues & Solutions
-
-**Port 5004 already in use:**
-```bash
-# Windows
-netstat -ano | findstr :5004
-# Mac/Linux
-lsof -ti:5004 | xargs kill
-```
-
-**Module not found errors:**
-```bash
-cd backend
-pip install -r requirements.txt
-```
-
-**Virtual environment issues:**
-```bash
-# Recreate virtual environment
-rm -rf venv
-python3 -m venv venv
-source venv/bin/activate  # Mac/Linux
-# or
-venv\Scripts\activate     # Windows
-pip install -r requirements.txt
-```
+<br>
 
 ---
 
@@ -306,6 +348,8 @@ pip install -r requirements.txt
 - **📱 Responsive Design** — Works on desktop, tablet, and mobile
 - **🌐 Cross-browser** — Compatible with all modern browsers
 
+<br>
+
 ---
 
 ## 🌱 Future Enhancements
@@ -317,51 +361,40 @@ pip install -r requirements.txt
 - 🔊 **Audio Feedback** — Enhanced sound effects and notifications
 - 📈 **Performance Monitoring** — Real-time system performance tracking
 
----
+<br>
 
-## 👨💻 Developer
+---  
+
+## 📞 Help & Contact  
+
+> 💬 *Got questions or need assistance with SimuLock?*  
+> We're here to help with technical support and collaboration!
 
 <div align="center">
 
-**Abhishek Giri**  
-*Senior Software Engineer & System Architect*  
-*Operating Systems & Concurrency Control Specialist*
-
+<b>👤 Abhishek Giri</b>  
 <a href="https://www.linkedin.com/in/abhishek-giri04/">
-  <img src="https://img.shields.io/badge/Connect%20on-LinkedIn-blue?style=for-the-badge&logo=linkedin" alt="LinkedIn"/>
+  <img src="https://img.shields.io/badge/Connect%20on-LinkedIn-blue?style=for-the-badge&logo=linkedin" alt="LinkedIn - Abhishek Giri"/>
 </a>  
 <a href="https://github.com/abhishekgiri04">
-  <img src="https://img.shields.io/badge/Follow%20on-GitHub-black?style=for-the-badge&logo=github" alt="GitHub"/>
+  <img src="https://img.shields.io/badge/Follow%20on-GitHub-black?style=for-the-badge&logo=github" alt="GitHub - Abhishek Giri"/>
 </a>  
 <a href="https://t.me/AbhishekGiri7">
-  <img src="https://img.shields.io/badge/Chat%20on-Telegram-blue?style=for-the-badge&logo=telegram" alt="Telegram"/>
+  <img src="https://img.shields.io/badge/Chat%20on-Telegram-blue?style=for-the-badge&logo=telegram" alt="Telegram - Abhishek Giri"/>
 </a>
+
+<br/>
+
+---
+
+**🔒 Built with ❤️ for Operating Systems Education**  
+*Transforming Deadlock Learning Through Interactive Simulation*
 
 </div>
 
 ---
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- **Operating Systems Concepts** by Abraham Silberschatz
-- **Modern Operating Systems** by Andrew S. Tanenbaum
-- **Flask Documentation** and community
-- **Socket.IO** for real-time communication
-- **Tailwind CSS** for modern styling
-- **NetworkX** for graph algorithms
-
----
-
 <div align="center">
-
-**🔒 Built with ❤️ for Operating Systems Education**  
-*Transforming Deadlock Learning Through Interactive Simulation*
 
 **© 2025 SimuLock - Advanced Deadlock Detection Simulator. All Rights Reserved.**
 
