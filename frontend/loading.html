@@ -13,7 +13,7 @@
             padding: 0;
             background: 
                 linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.8) 50%, rgba(51, 65, 85, 0.7) 100%),
-                url('/docs/Background.png') center/cover;
+                url('assets/background.png') center/cover;
             height: 100vh;
             display: flex;
             justify-content: center;
@@ -209,18 +209,40 @@
         }
 
         /* Grid overlay for tech look */
-        .grid-overlay {
+        .nav-header {
+            background: linear-gradient(90deg, rgba(255,255,255,0.95), rgba(251,245,255,0.9));
+            backdrop-filter: blur(6px);
+            border-bottom: 1px solid rgba(0,0,0,0.04);
+            box-shadow: 0 6px 18px rgba(59,130,246,0.04);
+            padding: 1rem 2rem;
+        }
+        .nav-link {
+            position: relative;
+            padding: 10px 18px;
+            border-radius: 12px;
+            overflow: hidden;
+            font-weight: 600;
+            transition: all 220ms ease;
+            text-decoration: none;
+            color: #374151;
+        }
+        .nav-link .hover-bg {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: 
-                linear-gradient(90deg, rgba(56, 189, 248, 0.1) 1px, transparent 1px),
-                linear-gradient(180deg, rgba(56, 189, 248, 0.1) 1px, transparent 1px);
-            background-size: 20px 20px;
-            z-index: -1;
-            opacity: 0.3;
+            inset: 0;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 220ms ease;
+            border-radius: 12px;
+        }
+        .nav-link:hover .hover-bg { transform: scaleX(1); }
+        .nav-link:hover { color: white; }
+        .active-link { color: #fff; background: linear-gradient(90deg,#6366f1,#7c3aed); }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
     </style>
 </head>
@@ -234,36 +256,37 @@
         <div class="particle"></div>
     </div>
 
-    <!-- Grid overlay -->
-    <div class="grid-overlay"></div>
-
     <div class="container">
         <div class="os-icon">
             <i class="fas fa-cogs"></i>
         </div>
         
         <div class="welcome-text">
-            Welcome to SimuLock
+            SimuLock Enterprise Platform
         </div>
         
         <div class="subtitle">
-            Advanced Deadlock Detection System
+            Advanced Operating Systems Deadlock Detection & Prevention Suite
         </div>
 
         <div class="terminal-line">
-            <span class="terminal-prompt">>></span> Initializing Process Manager...
+            <span class="terminal-prompt">>></span> Initializing Multi-Core Process Manager...
         </div>
         
         <div class="terminal-line">
-            <span class="terminal-prompt">>></span> Loading Resource Allocation Table...
+            <span class="terminal-prompt">>></span> Loading Enterprise Resource Allocation Engine...
         </div>
         
         <div class="terminal-line">
-            <span class="terminal-prompt">>></span> Starting Deadlock Detection Engine...
+            <span class="terminal-prompt">>></span> Starting Real-Time Deadlock Detection System...
         </div>
         
         <div class="terminal-line">
-            <span class="terminal-prompt">>></span> System Ready<span class="loading-dots">.</span><span class="loading-dots">.</span><span class="loading-dots">.</span>
+            <span class="terminal-prompt">>></span> Activating Concurrency Control Algorithms...
+        </div>
+        
+        <div class="terminal-line">
+            <span class="terminal-prompt">>></span> System Operational<span class="loading-dots">.</span><span class="loading-dots">.</span><span class="loading-dots">.</span>
         </div>
 
         <div class="progress-bar">
@@ -271,12 +294,12 @@
         </div>
 
         <div class="system-info">
-            <span>SimuLock Professional v1.0</span>
+            <span>SimuLock Enterprise Edition v2.0</span>
             <span>|</span>
-            <span>Process Simulation Engine</span>
+            <span>Advanced Process Synchronization Engine</span>
             <div class="status-indicator">
                 <div class="status-dot"></div>
-                <span>READY</span>
+                <span>OPERATIONAL</span>
             </div>
         </div>
     </div>
@@ -287,7 +310,7 @@
         
         // Simulate system initialization
         setTimeout(() => {
-            window.location.href = '/index';
+            window.location.href = 'index.html';
         }, 2800);
 
         // Add interactive 3D tilt effect

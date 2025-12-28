@@ -6,21 +6,61 @@ class Simulator {
         this.isSimulating = false;
         this.graph = new Graph();
         this.autoAssignEnabled = true;
+        this.autoDetectDeadlock = true;
         this.nextProcessId = 1;
         this.nextResourceId = 1;
+        this.currentRunningProcess = null;
     }
 
     addProcess(name) {
         const process = {
+            // Process Identification
             id: this.nextProcessId++,
+            pid: Math.floor(Math.random() * 10000) + 1000,
             name: name || `P${this.processes.length + 1}`,
-            allocated: {}, // {resourceName: count}
-            requested: {}, // {resourceName: count}
-            state: 'running',
-            waiting: false
+            state: 'ready',
+            
+            // Process State Information
+            programCounter: Math.floor(Math.random() * 1000),
+            cpuRegisters: {
+                AX: Math.floor(Math.random() * 100),
+                BX: Math.floor(Math.random() * 100),
+                CX: Math.floor(Math.random() * 100),
+                DX: Math.floor(Math.random() * 100),
+                SP: Math.floor(Math.random() * 1000),
+                BP: Math.floor(Math.random() * 1000),
+                SI: Math.floor(Math.random() * 100),
+                DI: Math.floor(Math.random() * 100)
+            },
+            
+            // Process Control Information
+            priority: Math.floor(Math.random() * 5) + 1,
+            schedulingInfo: {
+                arrivalTime: Date.now(),
+                burstTime: 0,
+                waitingTime: 0,
+                turnaroundTime: 0
+            },
+            
+            // Memory Management
+            memoryInfo: {
+                baseRegister: Math.floor(Math.random() * 10000),
+                limitRegister: Math.floor(Math.random() * 1000) + 100,
+                pageTable: []
+            },
+            
+            // Resource Management
+            allocated: {},
+            requested: {},
+            waiting: false,
+            
+            // Accounting Information
+            cpuTimeUsed: 0,
+            memoryUsed: Math.floor(Math.random() * 50) + 10
         };
+        
         this.processes.push(process);
-        this.log(`Process ${process.name} added`, "success");
+        this.log(`🟢 Process ${process.name} (PID: ${process.pid}) added to system`, "success");
         this.updateUI();
         
         if (this.autoAssignEnabled) {
@@ -36,10 +76,10 @@ class Simulator {
             name: name || `R${this.resources.length + 1}`,
             totalInstances: instances,
             availableInstances: instances,
-            allocated: {} // {processId: count}
+            allocated: {}
         };
         this.resources.push(resource);
-        this.log(`Resource ${resource.name} added with ${instances} instances`, "success");
+        this.log(`🟢 Resource ${resource.name} added with ${instances} instances`, "success");
         this.updateUI();
         
         if (this.autoAssignEnabled) {
@@ -54,7 +94,7 @@ class Simulator {
         
         // First: Assign to processes with pending requests
         this.processes.forEach(process => {
-            if (process.state === 'running' && process.waiting) {
+            if (process.waiting) {
                 Object.keys(process.requested).forEach(resourceName => {
                     const requestedCount = process.requested[resourceName];
                     if (requestedCount > 0) {
@@ -68,25 +108,8 @@ class Simulator {
             }
         });
         
-        // Second: Assign free resources to available processes
-        if (!assigned) {
-            this.processes.forEach(process => {
-                if (process.state === 'running' && !process.waiting) {
-                    this.resources.forEach(resource => {
-                        if (resource.availableInstances > 0) {
-                            const currentAllocation = process.allocated[resource.name] || 0;
-                            if (currentAllocation === 0) {
-                                this.assignResource(process.id, resource.id, 1);
-                                assigned = true;
-                            }
-                        }
-                    });
-                }
-            });
-        }
-        
         if (assigned) {
-            this.log("Auto-assigned free resources to processes", "info");
+            this.log("Auto-assigned resources to waiting processes", "info");
         }
         
         return assigned;
@@ -106,17 +129,10 @@ class Simulator {
             return false;
         }
         
-        console.log(`Before assignment - Process ${process.name} allocated:`, process.allocated);
-        console.log(`Before assignment - Resource ${resource.name} allocated:`, resource.allocated);
-        
         // Allocate resource
         resource.availableInstances -= count;
-        
-        // Update process allocations
-        process.allocated[resource.name] = (process.allocated[resource.name] || 0) + count;
-        
-        // Update resource allocations
         resource.allocated[process.id] = (resource.allocated[process.id] || 0) + count;
+        process.allocated[resource.name] = (process.allocated[resource.name] || 0) + count;
         
         // Remove from requested if it was there
         if (process.requested[resource.name] > 0) {
@@ -124,15 +140,30 @@ class Simulator {
             if (process.requested[resource.name] <= 0) {
                 delete process.requested[resource.name];
                 process.waiting = false;
-                this.log(`${process.name} got the requested ${resource.name} and is no longer waiting`, "success");
+                process.state = 'running';
+                this.log(`✅ ${process.name} acquired ${resource.name} - No longer waiting`, "success");
             }
         }
         
-        console.log(`After assignment - Process ${process.name} allocated:`, process.allocated);
-        console.log(`After assignment - Resource ${resource.name} allocated:`, resource.allocated);
+        // Update process state
+        if (!process.waiting) {
+            process.state = 'running';
+        }
         
-        this.log(`Assigned ${count} instance(s) of ${resource.name} to ${process.name}`, "success");
+        this.log(`🔵 ${process.name} allocated ${count} instance(s) of ${resource.name}`, "success");
+        
+        // Update process statistics
+        this.updateProcessStatistics();
+        
         this.updateUI();
+        
+        // Auto-detect deadlock
+        if (this.autoDetectDeadlock) {
+            setTimeout(() => {
+                this.detectDeadlock();
+            }, 100);
+        }
+        
         return true;
     }
 
@@ -145,19 +176,38 @@ class Simulator {
             return false;
         }
         
+        // Check if already allocated
+        const currentAllocation = process.allocated[resource.name] || 0;
+        if (currentAllocation > 0) {
+            this.log(`⚠️ ${process.name} already has ${resource.name} allocated`, "warning");
+            return false;
+        }
+        
         process.requested[resource.name] = (process.requested[resource.name] || 0) + count;
         process.waiting = true;
+        process.state = 'waiting';
         
-        this.log(`${process.name} requested ${count} instance(s) of ${resource.name}`, "info");
+        this.log(`🟡 ${process.name} requested ${count} instance(s) of ${resource.name}`, "info");
         
-        // Try to fulfill request immediately
+        // Try to fulfill request immediately if resources are available
         if (resource.availableInstances >= count) {
             this.assignResource(processId, resourceId, count);
         } else {
-            this.log(`${process.name} is now waiting for ${resource.name}`, "warning");
+            this.log(`⏳ ${process.name} waiting for ${resource.name}...`, "warning");
         }
         
+        // Update process statistics
+        this.updateProcessStatistics();
+        
         this.updateUI();
+        
+        // Auto-detect deadlock
+        if (this.autoDetectDeadlock) {
+            setTimeout(() => {
+                this.detectDeadlock();
+            }, 100);
+        }
+        
         return true;
     }
 
@@ -171,16 +221,10 @@ class Simulator {
         }
         
         const allocatedCount = process.allocated[resource.name] || 0;
-        console.log(`Release attempt - Process ${process.name} has ${allocatedCount} of ${resource.name}`);
-        
         if (allocatedCount < count) {
             this.log(`${process.name} doesn't have ${count} instances of ${resource.name} allocated (only has ${allocatedCount})`, "warning");
             return false;
         }
-        
-        console.log(`Before release - Process ${process.name} allocated:`, process.allocated);
-        console.log(`Before release - Resource ${resource.name} allocated:`, resource.allocated);
-        console.log(`Before release - Resource ${resource.name} available: ${resource.availableInstances}`);
         
         // Release resource from process
         process.allocated[resource.name] = allocatedCount - count;
@@ -198,20 +242,25 @@ class Simulator {
         // Increase available instances
         resource.availableInstances += count;
         
-        console.log(`After release - Process ${process.name} allocated:`, process.allocated);
-        console.log(`After release - Resource ${resource.name} allocated:`, resource.allocated);
-        console.log(`After release - Resource ${resource.name} available: ${resource.availableInstances}`);
-        
-        this.log(`Released ${count} instance(s) of ${resource.name} from ${process.name}`, "success");
+        this.log(`🟣 ${process.name} released ${count} instance(s) of ${resource.name}`, "success");
         
         // Auto-assign to waiting processes
         if (this.autoAssignEnabled) {
+            this.autoAssignResources();
+        }
+        
+        // Update process statistics
+        this.updateProcessStatistics();
+        
+        this.updateUI();
+        
+        // Auto-detect deadlock
+        if (this.autoDetectDeadlock) {
             setTimeout(() => {
-                this.autoAssignResources();
+                this.detectDeadlock();
             }, 100);
         }
         
-        this.updateUI();
         return true;
     }
 
@@ -223,8 +272,6 @@ class Simulator {
         }
         
         let releasedCount = 0;
-        
-        console.log(`Releasing all resources from ${process.name}`, process.allocated);
         
         // Release each allocated resource
         Object.keys(process.allocated).forEach(resourceName => {
@@ -241,36 +288,56 @@ class Simulator {
                 // Update available instances
                 resource.availableInstances += count;
                 releasedCount += count;
-                
-                console.log(`Released ${count} of ${resourceName} from ${process.name}`);
             }
         });
         
         // Clear all process allocations
         process.allocated = {};
         process.waiting = false;
+        process.state = 'ready';
         
-        this.log(`Released all resources (${releasedCount} instances) from ${process.name}`, "success");
+        this.log(`🟣 ${process.name} released all resources (${releasedCount} instances)`, "success");
         
         // Auto-assign released resources
         if (this.autoAssignEnabled) {
+            this.autoAssignResources();
+        }
+        
+        // Update process statistics
+        this.updateProcessStatistics();
+        
+        this.updateUI();
+        
+        // Auto-detect deadlock
+        if (this.autoDetectDeadlock) {
             setTimeout(() => {
-                this.autoAssignResources();
+                this.detectDeadlock();
             }, 100);
         }
         
-        this.updateUI();
         return true;
     }
 
+    updateProcessStatistics() {
+        this.processes.forEach(process => {
+            if (process.state === 'running') {
+                process.cpuTimeUsed += 10;
+                process.schedulingInfo.burstTime += 10;
+                process.programCounter += 4;
+            } else if (process.waiting || process.state === 'ready') {
+                process.schedulingInfo.waitingTime += 10;
+            }
+        });
+    }
+
     detectDeadlock() {
-        this.log("Running deadlock detection...", "info");
+        this.log("🔍 Scanning for deadlocks...", "info");
         
         const graph = this.buildGraph();
         const deadlockProcesses = this.graph.detectDeadlock(graph);
         
         if (deadlockProcesses.length > 0) {
-            this.log(`🚨 DEADLOCK DETECTED! Involved processes: ${deadlockProcesses.join(', ')}`, "error");
+            this.log(`🚨 DEADLOCK DETECTED! Processes involved: ${deadlockProcesses.join(', ')}`, "error");
             
             // Mark deadlocked processes
             this.processes.forEach(process => {
@@ -279,18 +346,152 @@ class Simulator {
                 }
             });
         } else {
-            this.log("✅ No deadlock detected", "success");
+            const hadDeadlock = this.processes.some(p => p.state === 'deadlocked');
+            if (hadDeadlock) {
+                this.log("✅ Deadlock resolved - System operational", "success");
+            }
             
             // Reset deadlocked state
             this.processes.forEach(process => {
                 if (process.state === 'deadlocked') {
-                    process.state = 'running';
+                    process.state = 'ready';
                 }
             });
         }
         
         this.updateUI();
         return deadlockProcesses;
+    }
+
+    toggleAutoDetection() {
+        this.autoDetectDeadlock = !this.autoDetectDeadlock;
+        this.log(`⚙️ Auto deadlock detection ${this.autoDetectDeadlock ? 'enabled' : 'disabled'}`, "info");
+        this.updateUI();
+    }
+
+    displayPCB(processId) {
+        const process = this.processes.find(p => p.id === processId);
+        if (!process) return;
+
+        const pcbContainer = document.getElementById('pcb-display');
+        const p = process;
+
+        pcbContainer.innerHTML = `
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Process Identification -->
+                <div class="col-span-2 bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                        <i class="fas fa-fingerprint"></i>
+                        Process Identification
+                    </h3>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>PID: <span class="font-mono font-bold">${p.pid}</span></div>
+                        <div>Name: <span class="font-semibold">${p.name}</span></div>
+                        <div>State: <span class="px-2 py-1 text-xs rounded-full ${
+                            p.state === 'running' ? 'bg-green-100 text-green-800' :
+                            p.state === 'waiting' ? 'bg-yellow-100 text-yellow-800' :
+                            p.state === 'deadlocked' ? 'bg-red-100 text-red-800' :
+                            'bg-blue-100 text-blue-800'
+                        }">${p.state}</span></div>
+                        <div>Priority: <span class="font-semibold">${p.priority}</span></div>
+                    </div>
+                </div>
+
+                <!-- CPU Registers -->
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                        <i class="fas fa-microchip"></i>
+                        CPU Registers
+                    </h3>
+                    <div class="space-y-1 text-sm font-mono">
+                        <div class="flex justify-between"><span>AX:</span><span class="font-bold">0x${p.cpuRegisters.AX.toString(16).toUpperCase()}</span></div>
+                        <div class="flex justify-between"><span>BX:</span><span class="font-bold">0x${p.cpuRegisters.BX.toString(16).toUpperCase()}</span></div>
+                        <div class="flex justify-between"><span>CX:</span><span class="font-bold">0x${p.cpuRegisters.CX.toString(16).toUpperCase()}</span></div>
+                        <div class="flex justify-between"><span>DX:</span><span class="font-bold">0x${p.cpuRegisters.DX.toString(16).toUpperCase()}</span></div>
+                    </div>
+                </div>
+
+                <!-- Process State -->
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                        <i class="fas fa-chart-line"></i>
+                        Scheduling Info
+                    </h3>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span>Burst Time:</span>
+                            <span class="font-semibold">${p.schedulingInfo.burstTime}ms</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Waiting Time:</span>
+                            <span class="font-semibold">${p.schedulingInfo.waitingTime}ms</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Program Counter:</span>
+                            <span class="font-mono">0x${p.programCounter.toString(16).toUpperCase()}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resource Management -->
+                <div class="col-span-2 bg-yellow-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                        <i class="fas fa-cubes"></i>
+                        Resource Management
+                    </h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <div class="font-medium mb-1">Allocated Resources:</div>
+                            <div class="text-green-600">${Object.keys(p.allocated).map(r => `${r}(${p.allocated[r]})`).join(', ') || 'None'}</div>
+                        </div>
+                        <div>
+                            <div class="font-medium mb-1">Requested Resources:</div>
+                            <div class="text-red-600">${Object.keys(p.requested).map(r => `${r}(${p.requested[r]})`).join(', ') || 'None'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Memory Management -->
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                        <i class="fas fa-memory"></i>
+                        Memory Info
+                    </h3>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span>Base Register:</span>
+                            <span class="font-mono">0x${p.memoryInfo.baseRegister.toString(16).toUpperCase()}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Limit Register:</span>
+                            <span class="font-mono">${p.memoryInfo.limitRegister}KB</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Memory Used:</span>
+                            <span class="font-semibold">${p.memoryUsed}KB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Accounting -->
+                <div class="bg-red-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                        <i class="fas fa-clock"></i>
+                        Accounting
+                    </h3>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span>CPU Time Used:</span>
+                            <span class="font-semibold">${p.cpuTimeUsed}ms</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Process ID:</span>
+                            <span class="font-mono">${p.id}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     buildGraph() {
@@ -300,12 +501,10 @@ class Simulator {
             edges: []
         };
         
-        // Add processes to graph
         this.processes.forEach(process => {
             graph.processes[process.name] = process;
         });
         
-        // Add resources to graph
         this.resources.forEach(resource => {
             graph.resources[resource.name] = resource;
         });
@@ -363,10 +562,37 @@ class Simulator {
         this.updateResourceList();
         this.updateStatusPanels();
         this.updateDropdowns();
+        this.updateStatistics();
         
-        // Update graph
+        // Update auto-detection button
+        const autoDetectBtn = document.getElementById('autoDetectBtn');
+        if (autoDetectBtn) {
+            autoDetectBtn.innerHTML = `<i class="fas fa-robot"></i> Auto Detect: ${this.autoDetectDeadlock ? 'On' : 'Off'}`;
+            autoDetectBtn.className = `w-full bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-200 transform hover:scale-[1.02] flex items-center justify-center gap-2 ${this.autoDetectDeadlock ? 'pulse-animation' : ''}`;
+        }
+        
         if (this.graph && this.graph.render) {
             this.graph.render(this.processes, this.resources);
+        }
+    }
+
+    updateStatistics() {
+        document.getElementById('processCount').textContent = this.processes.length;
+        document.getElementById('resourceCount').textContent = this.resources.length;
+        
+        const waitingProcesses = this.processes.filter(p => p.waiting).length;
+        const deadlockedProcesses = this.processes.filter(p => p.state === 'deadlocked').length;
+        
+        // Update system status based on conditions
+        if (deadlockedProcesses > 0) {
+            document.getElementById('systemStatus').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Deadlock Detected';
+            document.getElementById('systemStatus').className = 'text-lg font-semibold text-red-600 flex items-center gap-2 pulse-animation';
+        } else if (waitingProcesses > 0) {
+            document.getElementById('systemStatus').innerHTML = '<i class="fas fa-clock"></i> Processes Waiting';
+            document.getElementById('systemStatus').className = 'text-lg font-semibold text-yellow-600 flex items-center gap-2';
+        } else {
+            document.getElementById('systemStatus').innerHTML = '<i class="fas fa-check-circle"></i> Operational';
+            document.getElementById('systemStatus').className = 'text-lg font-semibold text-green-600 flex items-center gap-2';
         }
     }
 
@@ -386,9 +612,9 @@ class Simulator {
                           process.waiting ? 'process-waiting' : 'process-running';
             
             const processEl = document.createElement('div');
-            processEl.className = `p-3 rounded border ${bgClass} mb-2`;
+            processEl.className = `p-3 rounded border ${bgClass} mb-2 cursor-pointer hover:shadow-md transition-all duration-200`;
             processEl.innerHTML = `
-                <div class="font-semibold">${process.name} (ID: ${process.id})</div>
+                <div class="font-semibold">${process.name} (PID: ${process.pid})</div>
                 <div class="text-sm">State: ${process.state}${process.waiting ? ' (waiting)' : ''}</div>
                 <div class="text-sm">Allocated: ${Object.keys(process.allocated).map(r => `${r}(${process.allocated[r]})`).join(', ') || 'None'}</div>
                 <div class="text-sm">Requested: ${Object.keys(process.requested).map(r => `${r}(${process.requested[r]})`).join(', ') || 'None'}</div>
@@ -396,6 +622,14 @@ class Simulator {
                     Release All
                 </button>
             `;
+            
+            // Add click handler for PCB display
+            processEl.addEventListener('click', (e) => {
+                if (!e.target.closest('button')) {
+                    this.displayPCB(process.id);
+                }
+            });
+            
             container.appendChild(processEl);
         });
     }
@@ -504,7 +738,7 @@ class Simulator {
         if (this.isSimulating) return;
         
         this.isSimulating = true;
-        this.log("Starting auto-simulation...", "info");
+        this.log("🚀 Starting auto-simulation...", "info");
         
         this.resetSimulation();
         
@@ -515,16 +749,17 @@ class Simulator {
             this.addResource("R2", 1);
             
             setTimeout(() => {
-                this.requestResource(1, 1, 1); // P1 requests R1
-                this.requestResource(2, 2, 1); // P2 requests R2
+                this.requestResource(1, 1, 1);
+                this.requestResource(2, 2, 1);
                 
                 setTimeout(() => {
-                    this.requestResource(1, 2, 1); // P1 requests R2
-                    this.requestResource(2, 1, 1); // P2 requests R1
+                    this.requestResource(1, 2, 1);
+                    this.requestResource(2, 1, 1);
                     
                     setTimeout(() => {
                         this.detectDeadlock();
                         this.isSimulating = false;
+                        this.log("✅ Auto-simulation completed", "success");
                     }, 2000);
                 }, 2000);
             }, 1000);
@@ -537,7 +772,9 @@ class Simulator {
         this.nextProcessId = 1;
         this.nextResourceId = 1;
         this.logs = [];
-        this.log("Simulation reset", "info");
+        this.log("🔄 Simulation reset - Ready for new scenario", "info");
+        document.getElementById('systemStatus').innerHTML = '<i class="fas fa-check-circle"></i> Operational';
+        document.getElementById('systemStatus').className = 'text-lg font-semibold text-green-600 flex items-center gap-2';
         this.updateUI();
     }
 }
@@ -554,7 +791,7 @@ function requestResource() {
     const resourceId = parseInt(resourceSelect.value);
     
     if (!processId || !resourceId) {
-        simulator.log('Please select both process and resource', 'warning');
+        simulator.log('⚠️ Please select both process and resource', 'warning');
         return;
     }
     
@@ -569,9 +806,98 @@ function releaseResource() {
     const resourceId = parseInt(resourceSelect.value);
     
     if (!processId || !resourceId) {
-        simulator.log('Please select both process and resource', 'warning');
+        simulator.log('⚠️ Please select both process and resource', 'warning');
         return;
     }
     
     simulator.releaseResource(processId, resourceId, 1);
+}
+
+function clearLogs() {
+    simulator.logs = [];
+    simulator.updateLogsUI();
+    simulator.log('🗑️ Logs cleared', 'info');
+}
+
+async function init(total,pids,max_claims){
+  await fetch('/api/init', {method:'POST',headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({total,pids,max_claims})});
+}
+
+async function requestResources(pid, reqArr, mode='banker'){
+  const resp = await fetch('/api/request', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({pid: pid, request: reqArr, mode})
+  });
+  return resp.json();
+}
+
+async function detect(){
+  const r = await fetch('/api/detect'); return r.json();
+}
+
+async function recover(strategy, deadlocked_set=null){
+  const r = await fetch('/api/recover',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({strategy, deadlocked_set})
+  });
+  return r.json();
+}
+
+async function setPolicy(policy, order=null){
+  const r = await fetch('/api/prevention/set', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({policy, resource_order: order})
+  });
+  return r.json();
+}
+
+// Send resource request
+async function sendRequest(pid, req, mode='banker') {
+  const res = await fetch('/api/request', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({pid, request: req, mode})
+  });
+  const data = await res.json();
+  showMessage(`Request from ${pid}: ${data.reason}`);
+}
+
+// Detect deadlocks
+async function detectDeadlock() {
+  const res = await fetch('/api/detect');
+  const data = await res.json();
+  if (data.cycles.length > 0)
+    showMessage(`Deadlock detected among: ${JSON.stringify(data.cycles)}`);
+  else
+    showMessage('No deadlock detected.');
+}
+
+// Recover from deadlock
+async function recover(strategy='terminate_lowest') {
+  const res = await fetch('/api/recover', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({strategy})
+  });
+  const data = await res.json();
+  showMessage(`Recovery: ${data.actions}`);
+}
+
+// Set prevention policy
+async function setPolicy(policy='resource_ordering', order=[0,1]) {
+  const res = await fetch('/api/prevention/set', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({policy, resource_order: order})
+  });
+  const data = await res.json();
+  showMessage(`Policy set: ${policy}`);
+}
+
+// Utility to show output (you can update your HTML DOM instead)
+function showMessage(msg) {
+  console.log(msg);
+  document.getElementById('output').textContent += msg + '\\n';
 }

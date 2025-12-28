@@ -5,23 +5,23 @@ import os
 import webbrowser
 import threading
 import time
+from dotenv import load_dotenv
+from contact_handler import ContactHandler
+from modules import SimuLockSimulator
 
-# Get the absolute path to the frontend directory
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), 'frontend')
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'simulock_secret_2024'
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
+# Initialize contact handler
+contact_handler = ContactHandler()
+
 # Initialize simulator
-simulator = {
-    'processes': [],
-    'resources': [],
-    'next_pid': 1,
-    'next_rid': 1
-}
+sim = SimuLockSimulator()
 
 class Process:
     def __init__(self, pid, name):
@@ -110,65 +110,75 @@ def get_system_state():
 # Serve frontend files
 @app.route('/')
 def serve_loading():
-    return send_from_directory(FRONTEND_DIR, 'loading.html')
+    return send_from_directory('../frontend', 'loading.html')
 
 @app.route('/index')
 def serve_main():
-    return send_from_directory(FRONTEND_DIR, 'index.html')
+    return send_from_directory('../frontend', 'index.html')
 
 @app.route('/loading')
 def serve_loading_page():
-    return send_from_directory(FRONTEND_DIR, 'loading.html')
+    return send_from_directory('../frontend', 'loading.html')
 
 @app.route('/about')
 def serve_about():
-    response = send_from_directory(FRONTEND_DIR, 'about.html')
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
+    return send_from_directory('../frontend', 'about.html')
+
+@app.route('/locksmith')
+def serve_locksmith():
+    return send_from_directory('../frontend', 'locksmith.html')
+
+@app.route('/guide')
+def serve_guide():
+    return send_from_directory('../frontend', 'guide.html')
 
 @app.route('/contact')
 def serve_contact():
-    return send_from_directory(FRONTEND_DIR, 'contact.html')
-
-@app.route('/docs/<path:filename>')
-def serve_docs(filename):
-    docs_dir = os.path.join(os.path.dirname(BASE_DIR), 'docs')
-    return send_from_directory(docs_dir, filename)
+    return send_from_directory('../frontend', 'contact.html')
 
 @app.route('/<path:filename>')
 def serve_static(filename):
-    return send_from_directory(FRONTEND_DIR, filename)
+    return send_from_directory('../frontend', filename)
 
 # API Routes
 @app.route('/api/processes', methods=['GET'])
 def get_processes():
-    return jsonify(get_system_state())
+    return jsonify(sim.get_system_state())
 
 @app.route('/api/add_process', methods=['POST'])
 def api_add_process():
     data = request.json
-    name = data.get('name', f'Process {simulator["next_pid"]}')
-    process = add_process(name)
+    name = data.get('name', f'Process {len(sim.processes) + 1}')
+    process = sim.add_process(name)
     
-    system_state = get_system_state()
+    system_state = sim.get_system_state()
     socketio.emit('system_update', system_state)
     socketio.emit('log_message', {'message': f'✅ Process {name} created (PID: {process.pid})', 'type': 'success'})
     
-    return jsonify({"status": "success", "process": process.to_dict()})
+    return jsonify({"status": "success", "process": {
+        "pid": process.pid,
+        "name": process.name,
+        "state": process.state,
+        "allocated_resources": process.allocated_resources,
+        "requested_resources": process.requested_resources
+    }})
 
 @app.route('/api/add_resource', methods=['POST'])
 def api_add_resource():
     data = request.json
-    name = data.get('name', f'Resource {simulator["next_rid"]}')
-    resource = add_resource(name)
+    name = data.get('name', f'Resource {len(sim.resources) + 1}')
+    resource = sim.add_resource(name)
     
-    system_state = get_system_state()
+    system_state = sim.get_system_state()
     socketio.emit('system_update', system_state)
     socketio.emit('log_message', {'message': f'✅ Resource {name} created (RID: {resource.rid})', 'type': 'success'})
     
-    return jsonify({"status": "success", "resource": resource.to_dict()})
+    return jsonify({"status": "success", "resource": {
+        "rid": resource.rid,
+        "name": resource.name,
+        "available": resource.available,
+        "held_by": resource.held_by
+    }})
 
 @app.route('/api/request_resource', methods=['POST'])
 def api_request_resource():
@@ -176,9 +186,9 @@ def api_request_resource():
     process_id = data['process_id']
     resource_id = data['resource_id']
     
-    success, message = request_resource(process_id, resource_id)
+    success, message = sim.request_resource(process_id, resource_id)
     
-    system_state = get_system_state()
+    system_state = sim.get_system_state()
     socketio.emit('system_update', system_state)
     socketio.emit('log_message', {'message': message, 'type': 'success' if success else 'warning'})
     
@@ -190,9 +200,9 @@ def api_release_resource():
     process_id = data['process_id']
     resource_id = data['resource_id']
     
-    success, message = release_resource(process_id, resource_id)
+    success, message = sim.release_resource(process_id, resource_id)
     
-    system_state = get_system_state()
+    system_state = sim.get_system_state()
     socketio.emit('system_update', system_state)
     socketio.emit('log_message', {'message': message, 'type': 'success' if success else 'error'})
     
@@ -200,38 +210,19 @@ def api_release_resource():
 
 @app.route('/api/auto_simulate', methods=['POST'])
 def api_auto_simulate():
-    # Reset first
-    simulator['processes'] = []
-    simulator['resources'] = []
-    simulator['next_pid'] = 1
-    simulator['next_rid'] = 1
+    result = sim.auto_simulate_deadlock()
     
-    # Create deadlock scenario
-    p1 = add_process("Process A")
-    p2 = add_process("Process B")
-    r1 = add_resource("Resource X")
-    r2 = add_resource("Resource Y")
-    
-    # Create deadlock
-    request_resource(p1.pid, r1.rid)  # P1 gets R1
-    request_resource(p2.pid, r2.rid)  # P2 gets R2
-    request_resource(p1.pid, r2.rid)  # P1 waits for R2
-    request_resource(p2.pid, r1.rid)  # P2 waits for R1 - DEADLOCK!
-    
-    system_state = get_system_state()
+    system_state = sim.get_system_state()
     socketio.emit('system_update', system_state)
     socketio.emit('log_message', {'message': '🤖 Auto simulation: Deadlock scenario created!', 'type': 'info'})
     
-    return jsonify({"status": "success", "message": "Auto simulation completed"})
+    return jsonify({"status": "success", "message": result['message']})
 
 @app.route('/api/reset', methods=['POST'])
 def api_reset():
-    simulator['processes'] = []
-    simulator['resources'] = []
-    simulator['next_pid'] = 1
-    simulator['next_rid'] = 1
+    sim.reset_simulation()
     
-    socketio.emit('system_update', get_system_state())
+    socketio.emit('system_update', sim.get_system_state())
     socketio.emit('log_message', {'message': '🔄 Simulation reset', 'type': 'info'})
     
     return jsonify({"status": "success"})
@@ -240,7 +231,7 @@ def api_reset():
 @socketio.on('connect')
 def handle_connect():
     print('Client connected to SimuLock')
-    emit('system_update', get_system_state())
+    emit('system_update', sim.get_system_state())
     emit('log_message', {'message': '🔗 Connected to SimuLock simulator', 'type': 'info'})
 
 @socketio.on('disconnect')
@@ -256,17 +247,101 @@ def open_browser():
         webbrowser.open('http://localhost:5004')
         browser_opened = True
 
+@app.route('/api/init', methods=['POST'])
+def api_init():
+    data = request.json or {}
+    total = data.get('total', [3,3])
+    pids = data.get('pids', ['P0','P1','P2'])
+    max_claims = data.get('max_claims', {p:[1]*len(total) for p in pids})
+    return jsonify({"ok": True})
+
+@app.route('/api/request', methods=['POST'])
+def api_request():
+    data = request.json or {}
+    pid = data.get('pid')
+    req = data.get('request', [])
+    mode = data.get('mode', 'banker')
+    return jsonify({"granted": True, "reason": "success"})
+
+@app.route('/api/detect', methods=['GET'])
+def api_detect():
+    cycles = sim.detect_deadlocks()
+    return jsonify({"cycles": cycles})
+
+@app.route('/api/recover', methods=['POST'])
+def api_recover():
+    data = request.json or {}
+    strategy = data.get('strategy', 'terminate_lowest')
+    deadlocked = data.get('deadlocked_set')
+    return jsonify({"actions": []})
+
+@app.route('/api/prevention/set', methods=['POST'])
+def api_set_policy():
+    data = request.json or {}
+    policy = data.get('policy')
+    order = data.get('resource_order')
+    return jsonify({"ok": True})
+
+@app.route('/api/snapshot', methods=['GET'])
+def api_snapshot():
+    return jsonify(sim.get_system_state())
+
+@app.route('/api/banker', methods=['POST'])
+def api_banker():
+    return jsonify({"status": "success", "is_safe": True, "result": "Safe state - no deadlock"})
+
+@app.route('/api/locksmith/detect', methods=['POST'])
+def api_locksmith_detect():
+    cycles = sim.detect_deadlocks()
+    has_deadlock = cycles.get('has_deadlock', False)
+    message = 'Deadlock detected' if has_deadlock else 'No deadlock detected'
+    socketio.emit('log_message', {'message': f'🔍 {message}', 'type': 'error' if has_deadlock else 'success'})
+    return jsonify({"status": "success", "has_deadlock": has_deadlock, "deadlocked_processes": []})
+
+@app.route('/api/locksmith/random', methods=['POST'])
+def api_locksmith_random():
+    result = sim.auto_simulate_deadlock()
+    socketio.emit('log_message', {'message': '🎲 Random scenario generated', 'type': 'info'})
+    return jsonify({"status": "success", "state": result})
+
+@app.route('/api/locksmith/configure', methods=['POST'])
+def api_locksmith_configure():
+    return jsonify({"status": "success"})
+
+@app.route('/api/locksmith/state', methods=['GET'])
+def api_locksmith_state():
+    state = sim.get_system_state()
+    return jsonify({"status": "success", "state": state})
+@app.route('/api/contact', methods=['POST'])
+def api_contact():
+    try:
+        data = request.json
+        name = data.get('name', '')
+        email = data.get('email', '')
+        subject = data.get('subject', '')
+        message = data.get('message', '')
+        
+        # Validate required fields
+        if not name or not email or not message:
+            return jsonify({"status": "error", "message": "Name, email, and message are required"}), 400
+        
+        # Send email using contact handler
+        result = contact_handler.send_contact_email(name, email, subject, message)
+        
+        if result["success"]:
+            return jsonify({"status": "success", "message": "Message sent successfully!"})
+        else:
+            return jsonify({"status": "error", "message": result["message"]}), 500
+        
+    except Exception as e:
+        print(f"Contact form error: {e}")
+        return jsonify({"status": "error", "message": "Failed to send message"}), 500
+
+
 if __name__ == '__main__':
-    # Check if frontend directory exists
-    if not os.path.exists(FRONTEND_DIR):
-        print(f"❌ Error: Frontend directory not found at {FRONTEND_DIR}")
-        print("Please ensure the frontend directory exists in the project root.")
-        exit(1)
-    
-    print("🚀 Starting SimuLock Server on http://localhost:5004")
-    print("📊 SimuLock: Advanced Deadlock Detection Simulator")
-    print("💡 Access the frontend at http://localhost:5004")
-    print(f"📁 Frontend directory: {FRONTEND_DIR}")
+    print("Starting SimuLock Server on http://localhost:5004")
+    print("SimuLock: Advanced Deadlock Detection Simulator")
+    print("Access the frontend at http://localhost:5004")
     
     threading.Thread(target=open_browser).start()
     socketio.run(app, debug=False, port=5004, host='0.0.0.0', allow_unsafe_werkzeug=True)

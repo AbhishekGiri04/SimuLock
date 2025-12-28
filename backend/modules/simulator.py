@@ -1,27 +1,31 @@
-from .process import ProcessManager
-from .resource import ResourceManager
-from .semaphore import SemaphoreManager
-from .deadlock_detector import DeadlockDetector
-import json
 from datetime import datetime
 
 class SimuLockSimulator:
     """Main simulator class that coordinates all components"""
     
     def __init__(self):
-        self.process_manager = ProcessManager()
-        self.resource_manager = ResourceManager()
-        self.semaphore_manager = SemaphoreManager()
-        self.deadlock_detector = DeadlockDetector()
         self.simulation_history = []
         self.is_running = False
+        self.processes = []
+        self.resources = []
+        self.next_pid = 1
+        self.next_rid = 1
         
     # Process Management
     def add_process(self, name, priority=1):
         """Add a new process to the simulation"""
-        process = self.process_manager.create_process(name, priority)
+        class SimpleProcess:
+            def __init__(self, pid, name):
+                self.pid = pid
+                self.name = name
+                self.state = "ready"
+                self.allocated_resources = []
+                self.requested_resources = []
         
-        # Record action
+        process = SimpleProcess(self.next_pid, name)
+        self.processes.append(process)
+        self.next_pid += 1
+        
         self.record_action("process_created", {
             "pid": process.pid,
             "name": name,
@@ -46,10 +50,16 @@ class SimuLockSimulator:
     # Resource Management
     def add_resource(self, name, resource_type="binary"):
         """Add a new resource to the simulation"""
-        resource = self.resource_manager.create_resource(name, resource_type)
+        class SimpleResource:
+            def __init__(self, rid, name):
+                self.rid = rid
+                self.name = name
+                self.available = True
+                self.held_by = None
         
-        # Create semaphore for the resource
-        self.semaphore_manager.create_semaphore(resource.rid)
+        resource = SimpleResource(self.next_rid, name)
+        self.resources.append(resource)
+        self.next_rid += 1
         
         self.record_action("resource_created", {
             "rid": resource.rid,
@@ -61,67 +71,55 @@ class SimuLockSimulator:
     
     def request_resource(self, process_id, resource_id):
         """Request a resource for a process"""
-        process = self.process_manager.get_process(process_id)
-        resource = self.resource_manager.get_resource(resource_id)
+        process = next((p for p in self.processes if p.pid == process_id), None)
+        resource = next((r for r in self.resources if r.rid == resource_id), None)
         
         if not process or not resource:
             return False, "Process or resource not found"
         
-        # Use semaphore to request resource
-        semaphore_success = self.semaphore_manager.request_resource(resource_id, process_id)
-        
-        if semaphore_success:
-            # Semaphore acquired, allocate resource
-            resource.allocate(process_id)
-            process.allocate_resource(resource_id)
-            process.cancel_request(resource_id)  # Remove from requested if it was there
-            
+        if resource.available:
+            resource.available = False
+            resource.held_by = process_id
+            process.allocated_resources.append(resource_id)
+            process.state = "running"
             message = f"Resource {resource.name} allocated to {process.name}"
             action_type = "resource_allocated"
+            success = True
         else:
-            # Semaphore not available, add to waiting
-            resource.add_to_waiting_queue(process_id)
-            process.request_resource(resource_id)
-            
+            process.state = "waiting"
+            process.requested_resources.append(resource_id)
             message = f"{process.name} waiting for {resource.name}"
             action_type = "resource_waiting"
+            success = False
         
         self.record_action(action_type, {
             "pid": process_id,
             "rid": resource_id,
-            "success": semaphore_success
+            "success": success
         })
         
-        return semaphore_success, message
+        return success, message
     
     def release_resource(self, process_id, resource_id):
         """Release a resource from a process"""
-        process = self.process_manager.get_process(process_id)
-        resource = self.resource_manager.get_resource(resource_id)
+        process = next((p for p in self.processes if p.pid == process_id), None)
+        resource = next((r for r in self.resources if r.rid == resource_id), None)
         
         if not process or not resource:
             return False, "Process or resource not found"
         
-        # Check if process actually holds this resource
         if resource_id not in process.allocated_resources:
             return False, f"Process {process.name} doesn't hold resource {resource.name}"
         
-        # Release from process
-        process.release_resource(resource_id)
-        
-        # Release from resource and semaphore
-        previous_holder = resource.release()
-        next_process = self.semaphore_manager.release_resource(resource_id)
-        
-        # If there's a process waiting, try to allocate to it
-        if next_process:
-            self.request_resource(next_process, resource_id)
+        process.allocated_resources.remove(resource_id)
+        resource.available = True
+        resource.held_by = None
+        process.state = "ready"
         
         message = f"Resource {resource.name} released by {process.name}"
         self.record_action("resource_released", {
             "pid": process_id,
-            "rid": resource_id,
-            "next_process": next_process
+            "rid": resource_id
         })
         
         return True, message
@@ -129,10 +127,21 @@ class SimuLockSimulator:
     # Deadlock Detection
     def detect_deadlocks(self):
         """Detect deadlocks in the current system state"""
-        processes = self.process_manager.get_all_processes()
-        resources = self.resource_manager.get_all_resources()
+        # Simple deadlock detection
+        deadlocks = []
+        for p in self.processes:
+            if p.state == "waiting" and p.requested_resources:
+                for req_rid in p.requested_resources:
+                    resource = next((r for r in self.resources if r.rid == req_rid), None)
+                    if resource and resource.held_by:
+                        holder = next((pp for pp in self.processes if pp.pid == resource.held_by), None)
+                        if holder and holder.state == "waiting":
+                            deadlocks.append([p.name, holder.name])
         
-        result = self.deadlock_detector.detect_deadlocks(processes, resources)
+        result = {
+            'has_deadlock': len(deadlocks) > 0,
+            'deadlocks': deadlocks
+        }
         
         if result['has_deadlock']:
             self.record_action("deadlock_detected", {
@@ -145,37 +154,36 @@ class SimuLockSimulator:
     # System State Management
     def get_system_state(self):
         """Get complete system state"""
-        processes = self.process_manager.get_all_processes()
-        resources = self.resource_manager.get_all_resources()
-        
-        # Build detailed state information
-        system_state = {
-            "processes": [p.to_dict() for p in processes],
-            "resources": [r.to_dict() for r in resources],
-            "semaphores": self.semaphore_manager.to_dict(),
-            "statistics": self.get_system_statistics(),
-            "wait_for_graph": self.deadlock_detector.get_graph_data(),
+        return {
+            "processes": [{
+                "pid": p.pid,
+                "name": p.name,
+                "state": p.state,
+                "allocated_resources": p.allocated_resources,
+                "requested_resources": p.requested_resources
+            } for p in self.processes],
+            "resources": [{
+                "rid": r.rid,
+                "name": r.name,
+                "available": r.available,
+                "held_by": r.held_by
+            } for r in self.resources],
             "timestamp": datetime.now().isoformat()
         }
-        
-        return system_state
     
     def get_system_statistics(self):
         """Get system statistics"""
-        processes = self.process_manager.get_all_processes()
-        resources = self.resource_manager.get_all_resources()
-        
-        running_processes = len([p for p in processes if p.state == "running"])
-        waiting_processes = len([p for p in processes if p.state == "waiting"])
-        available_resources = len([r for r in resources if r.available])
+        running_processes = len([p for p in self.processes if p.state == "running"])
+        waiting_processes = len([p for p in self.processes if p.state == "waiting"])
+        available_resources = len([r for r in self.resources if r.available])
         
         return {
-            "total_processes": len(processes),
-            "total_resources": len(resources),
+            "total_processes": len(self.processes),
+            "total_resources": len(self.resources),
             "running_processes": running_processes,
             "waiting_processes": waiting_processes,
             "available_resources": available_resources,
-            "system_utilization": (running_processes / len(processes)) * 100 if processes else 0
+            "system_utilization": (running_processes / len(self.processes)) * 100 if self.processes else 0
         }
     
     def record_action(self, action_type, data):
@@ -197,10 +205,10 @@ class SimuLockSimulator:
     
     def reset_simulation(self):
         """Reset the entire simulation"""
-        self.process_manager.reset()
-        self.resource_manager.reset()
-        self.semaphore_manager.reset()
-        self.deadlock_detector.reset()
+        self.processes = []
+        self.resources = []
+        self.next_pid = 1
+        self.next_rid = 1
         self.simulation_history.clear()
         
         self.record_action("system_reset", {})
@@ -219,15 +227,66 @@ class SimuLockSimulator:
         r1 = self.add_resource("Resource X")
         r2 = self.add_resource("Resource Y")
         
-        # Create deadlock scenario: Process A holds Resource X, wants Resource Y
-        # Process B holds Resource Y, wants Resource X
+        # Create deadlock scenario
         self.request_resource(p1.pid, r1.rid)  # P1 gets R1
         self.request_resource(p2.pid, r2.rid)  # P2 gets R2
-        self.request_resource(p1.pid, r2.rid)  # P1 waits for R2 (held by P2)
-        self.request_resource(p2.pid, r1.rid)  # P2 waits for R1 (held by P1) - DEADLOCK!
+        self.request_resource(p1.pid, r2.rid)  # P1 waits for R2
+        self.request_resource(p2.pid, r1.rid)  # P2 waits for R1 - DEADLOCK!
         
         return {
             "message": "Deadlock scenario created automatically",
             "processes": [p1.pid, p2.pid],
             "resources": [r1.rid, r2.rid]
         }
+    
+    # backend/modules/simulator.py
+from threading import Lock
+from modules.banker import ResourceManager, PreventionManager
+
+_manager_lock = Lock()
+_resource_manager = None
+_prevention = None
+
+def init_from_config(total, pids, max_claims):
+    global _resource_manager, _prevention
+    with _manager_lock:
+        _resource_manager = ResourceManager(total, pids, max_claims)
+        _prevention = PreventionManager(_resource_manager)
+    return True
+
+def ensure_initialized():
+    if _resource_manager is None:
+        # default small config; replace or call /api/init from frontend
+        init_from_config([3,3], ['P0','P1','P2'], { 'P0':[2,1], 'P1':[1,2], 'P2':[1,1] })
+
+def handle_request(pid, req, mode='banker'):
+    ensure_initialized()
+    with _manager_lock:
+        if mode == 'banker':
+            return _resource_manager.request_resources(pid, req)
+        elif mode == 'prevention':
+            return _prevention.request_with_prevention(pid, req)
+        elif mode == 'direct':
+            return _prevention.allow_direct_allocate(pid, req)
+        else:
+            return False, 'unknown_mode'
+
+def detect_deadlocks():
+    ensure_initialized()
+    with _manager_lock:
+        return _resource_manager.detect_deadlock()
+
+def recover_deadlock(strategy='terminate_lowest', deadlocked_set=None):
+    ensure_initialized()
+    with _manager_lock:
+        return _resource_manager.recover(strategy=strategy, deadlocked_set=deadlocked_set)
+
+def set_prevention_policy(policy, resource_order=None):
+    ensure_initialized()
+    with _manager_lock:
+        return _prevention.set_policy(policy, resource_order)
+
+def snapshot():
+    ensure_initialized()
+    with _manager_lock:
+        return _resource_manager.snapshot()
