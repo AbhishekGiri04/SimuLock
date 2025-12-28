@@ -1,5 +1,5 @@
 // Socket.IO connection
-const socket = io('http://localhost:5000');
+const socket = io('http://localhost:5004');
 
 // Global state
 let systemState = {
