@@ -115,7 +115,9 @@ SimuLock/
 │   │   └── 📄 simulator.py         # 🎮 Main simulation controller
 │   ├── 📄 .env                     # 🔐 Environment variables
 │   ├── 📄 app.py                   # 🚀 Flask application server
+│   ├── 📄 build.sh                 # 🔨 Render build script
 │   ├── 📄 contact_handler.py       # 📧 Email contact system
+│   ├── 📄 Procfile                 # 🚀 Render deployment config
 │   └── 📄 requirements.txt         # 📋 Python dependencies
 ├── 📂 docs/                        # 📸 Documentation and screenshots
 │   ├── 📄 About_Page.png           # 📸 About page screenshot

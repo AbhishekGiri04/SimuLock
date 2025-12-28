@@ -339,9 +339,12 @@ def api_contact():
 
 
 if __name__ == '__main__':
-    print("Starting SimuLock Server on http://localhost:5004")
+    port = int(os.environ.get('PORT', 5004))
+    print(f"Starting SimuLock Server on port {port}")
     print("SimuLock: Advanced Deadlock Detection Simulator")
-    print("Access the frontend at http://localhost:5004")
     
-    threading.Thread(target=open_browser).start()
-    socketio.run(app, debug=False, port=5004, host='0.0.0.0', allow_unsafe_werkzeug=True)
+    # Only open browser in local development
+    if os.environ.get('RENDER') != 'true':
+        threading.Thread(target=open_browser).start()
+    
+    socketio.run(app, debug=False, port=port, host='0.0.0.0', allow_unsafe_werkzeug=True)
