@@ -146,6 +146,7 @@ SimuLock/
 │   └── 📄 loading.html             # ⏳ Loading screen
 ├── 📄 .gitignore                   # 🚫 Git ignore rules
 ├── 📄 .mailmap                     # 👤 Git author mapping
+├── 📄 LICENSE                      # 📄 MIT License
 ├── 📄 README.md                    # 📖 Project documentation
 ├── 📄 start.sh                     # 🚀 Automated startup script
 └── 📄 vercel.json                  # ⚡ Vercel deployment configuration
@@ -370,7 +371,7 @@ source venv/bin/activate && pip install -r requirements.txt
 ## 📞 Help & Contact  
 
 > 💬 *Got questions or need assistance with SimuLock?*  
-> We're here to help with technical support and collaboration!
+> We're here to help with integration and customization!
 
 <div align="center">
 
@@ -386,6 +387,12 @@ source venv/bin/activate && pip install -r requirements.txt
 </a>
 
 <br/>
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
