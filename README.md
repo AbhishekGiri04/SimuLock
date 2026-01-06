@@ -113,7 +113,6 @@ SimuLock/
 │   │   ├── 📄 resource.py          # 📦 Resource allocation
 │   │   ├── 📄 semaphore.py         # 🔒 Binary semaphore implementation
 │   │   └── 📄 simulator.py         # 🎮 Main simulation controller
-│   ├── 📄 .env                     # 🔐 Environment variables
 │   ├── 📄 app.py                   # 🚀 Flask application server
 │   ├── 📄 build.sh                 # 🔨 Render build script
 │   ├── 📄 contact_handler.py       # 📧 Email contact system
@@ -139,7 +138,6 @@ SimuLock/
 │   │   ├── 📄 app.js               # 🔗 Socket.IO and API communication
 │   │   ├── 📄 graph.js             # 📊 Graph visualization utilities
 │   │   └── 📄 simulator.js         # 🎮 Simulation control logic
-│   ├── 📄 .env                     # 🔐 Frontend environment variables
 │   ├── 📄 about.html               # ℹ️ About page
 │   ├── 📄 contact.html             # 📞 Contact information
 │   ├── 📄 index.html               # 🏠 Main application interface
@@ -405,6 +403,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**© 2025 SimuLock - Advanced Deadlock Detection Simulator. All Rights Reserved.**
+**© 2026 SimuLock - Advanced Deadlock Detection Simulator. All Rights Reserved.**
 
-</div># SimuLock
+</div>
