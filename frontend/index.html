@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SimuLock - Advanced Deadlock Detection Simulator</title>
+  <link rel="icon" type="image/png" href="https://mir-s3-cdn-cf.behance.net/project_modules/hd/ca226b34153161.56c5d4776abb7.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Core styles */
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:#f8fafc; }
+    .modern-card { background: rgb(255, 255, 255); border-radius: 12px; padding: 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.06); border: 1px solid #e5e7eb; }
+    .btn-primary { background: linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%); color: #fff; padding: 8px 12px; border-radius: 10px; border: none; }
+    .btn-secondary { background: #f3f4f6; color:#111827; padding: 8px 12px; border-radius:10px; border:1px solid #e5e7eb; }
+    .graph-container { background: #ffffff; border-radius: 12px; padding: 12px; min-height: 320px; }
+    .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 10px; }
+    .process-running { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border:1px solid #10b981; }
+    .process-waiting { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border:1px solid #f59e0b; }
+    .process-deadlocked { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border:1px solid #ef4444; }
+    .resource-available { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border:1px solid #10b981; }
+    .resource-allocated { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border:1px solid #ef4444; }
+    .modal-backdrop { position: fixed; inset:0; background: rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index:60; }
+    .hidden { display:none; }
+    .rounded-xl { border-radius: 12px; }
+    .max-w-centered { max-width: 1200px; margin-left:auto; margin-right:auto; }
+    @media (min-width: 1280px) { .max-w-centered { max-width: 1200px; } }
+
+    /* consistent nav styles copied from about/contact pages */
+    .site-nav {
+      background: linear-gradient(90deg, rgba(255,255,255,0.95), rgba(251,245,255,0.9));
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid rgba(0,0,0,0.04);
+      box-shadow: 0 6px 18px rgba(59,130,246,0.04);
+    }
+    .nav-link {
+      position: relative;
+      padding: 10px 18px;
+      border-radius: 12px;
+      overflow: hidden;
+      font-weight: 600;
+      transition: all 220ms ease;
+    }
+    .nav-link .hover-bg {
+      position:absolute; inset:0; transform:scaleX(0); transform-origin:left; transition: transform 220ms ease; border-radius:12px;
+    }
+    .nav-link:hover .hover-bg { transform: scaleX(1); }
+    .active-link { color:#fff; background: linear-gradient(90deg,#6366f1,#7c3aed); }
+    .icon-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px; border-radius:8px; background:transparent; border:1px solid #e6e9ef; }
+    .log-item { font-family: monospace; font-size: 13px; padding:6px 2px; border-bottom: 1px dashed rgba(0,0,0,0.04); }
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- Background Audio -->
+  <audio id="bgMusic" loop>
+    <source src="BGG.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- Navigation -->
+  <nav class="bg-gradient-to-r from-white/95 via-blue-50/90 to-purple-50/95 backdrop-blur-xl border-b border-gradient-to-r from-blue-200/30 to-purple-200/30 sticky top-0 z-50 shadow-lg shadow-blue-500/10">
+    <div class="max-w-7xl mx-auto px-8 py-6">
+      <div class="flex items-center justify-between">
+        <div class="relative group">
+          <h1 class="text-4xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent tracking-tight relative">
+            SimuLock
+            <div class="absolute -bottom-1 left-0 w-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500 group-hover:w-full"></div>
+            <div class="absolute -top-1 -left-1 w-2 h-2 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 animate-pulse"></div>
+            <div class="absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 animate-pulse delay-150"></div>
+          </h1>
+          <p class="text-sm text-gray-500 mt-1">Deadlock Simulator</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <a href="loading.html" class="relative px-6 py-3 text-white font-semibold tracking-wide rounded-xl bg-gradient-to-r from-blue-500 to-blue-600">
+            <span class="relative z-10">Home</span>
+          </a>
+          <a href="about.html" class="relative px-6 py-3 text-gray-700 font-semibold tracking-wide transition-all duration-300 group overflow-hidden rounded-xl">
+            <span class="relative z-10 group-hover:text-white transition-colors duration-300">About</span>
+            <div class="absolute inset-0 bg-gradient-to-r from-purple-500 to-purple-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-xl"></div>
+          </a>
+          <a href="contact.html" class="relative px-6 py-3 text-gray-700 font-semibold tracking-wide transition-all duration-300 group overflow-hidden rounded-xl">
+            <span class="relative z-10 group-hover:text-white transition-colors duration-300">Contact</span>
+            <div class="absolute inset-0 bg-gradient-to-r from-indigo-500 to-indigo-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-xl"></div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <div class="relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-3xl shadow-2xl mb-8 mx-6 mt-6">
+    <div class="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20"></div>
+    <div class="absolute inset-0">
+      <div class="absolute top-0 left-0 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+      <div class="absolute top-0 right-0 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-2000"></div>
+    </div>
+    <div class="relative px-8 py-12">
+      <div class="flex items-center justify-between">
+        <div class="flex-1">
+          <div class="flex items-center gap-4 mb-4">
+            <div class="w-14 h-14 bg-gradient-to-br from-blue-500 via-purple-500 to-indigo-600 rounded-2xl shadow-2xl flex items-center justify-center transition-all duration-300">
+              <i class="fas fa-shield-alt text-white text-2xl"></i>
+            </div>
+            <div>
+              <h1 class="text-5xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                SimuLock
+              </h1>
+              <div class="flex items-center gap-2 mt-1">
+                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span class="text-gray-300 text-sm font-medium">Professional Edition v2.0</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-xl text-gray-300 mb-6 max-w-2xl leading-relaxed">
+            Advanced Operating Systems Deadlock Detection & Prevention Platform
+            <span class="block text-sm text-gray-400 mt-2">Industry-grade simulation engine with intelligent resource allocation algorithms and real-time process synchronization analysis</span>
+          </p>
+          <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2 text-gray-300">
+              <i class="fas fa-microchip text-blue-400"></i>
+              <span class="text-sm">Multi-Core Processing</span>
+            </div>
+            <div class="flex items-center gap-2 text-gray-300">
+              <i class="fas fa-network-wired text-purple-400"></i>
+              <span class="text-sm">Real-time Detection</span>
+            </div>
+            <div class="flex items-center gap-2 text-gray-300">
+              <i class="fas fa-chart-line text-green-400"></i>
+              <span class="text-sm">Performance Analytics</span>
+            </div>
+            <div class="flex items-center gap-2 text-gray-300">
+              <i class="fas fa-shield-alt text-yellow-400"></i>
+              <span class="text-sm">Enterprise Security</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex flex-col items-end gap-6">
+          <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+            <div class="text-center">
+              <div class="text-sm text-gray-300 mb-2">System Status</div>
+              <div id="systemStatus" class="text-xl font-bold text-green-400 flex items-center gap-2 justify-center">
+                <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                Operational & Ready
+              </div>
+              <div class="text-xs text-gray-400 mt-1">All systems nominal</div>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <div class="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/20">
+              <div class="text-center">
+                <div id="processCount" class="text-2xl font-bold text-white">0</div>
+                <div class="text-xs text-gray-300">Active Processes</div>
+              </div>
+            </div>
+            <div class="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/20">
+              <div class="text-center">
+                <div id="resourceCount" class="text-2xl font-bold text-white">0</div>
+                <div class="text-xs text-gray-300">System Resources</div>
+              </div>
+            </div>
+            <div class="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/20">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-blue-400">∞</div>
+                <div class="text-xs text-gray-300">Scalability</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <main class="px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- LEFT: Controls, Lists, Logs (col-span 3 on lg) -->
+    <section class="lg:col-span-3 space-y-6">
+
+      <!-- Quick Actions -->
+      <div class="modern-card space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold flex items-center gap-2"><i class="fas fa-rocket text-blue-500"></i> Quick Actions</h2>
+          <div class="text-sm text-gray-500" id="systemStatusSmall">Operational</div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mt-2">
+          <button id="addProcessBtn" class="btn-primary w-full"><i class="fas fa-plus mr-2"></i>Add Process</button>
+          <button id="openAddResourceModalBtn" class="btn-primary w-full"><i class="fas fa-cube mr-2"></i>Add Resource</button>
+          <button id="autoSimulateBtn" class="btn-secondary col-span-2 w-full"><i class="fas fa-bolt mr-2 text-yellow-600"></i> Auto Simulate</button>
+        </div>
+      </div>
+
+      <!-- LockSmith Character Guide -->
+      <div class="modern-card space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold flex items-center gap-2"><i class="fas fa-user-ninja text-purple-500"></i> LockSmith Guide</h2>
+          <div class="text-sm text-gray-500" id="guideStatus">Ready to help</div>
+        </div>
+        <div class="text-center p-4">
+          <div class="w-24 h-24 mx-auto mb-3 relative">
+            <img id="characterFace" src="assets/101.png" alt="LockSmith" class="w-24 h-24 rounded-full object-cover border-4 border-purple-300 transition-all duration-300">
+          </div>
+          <h3 class="font-semibold text-gray-800 mb-2">Hi! I'm LockSmith</h3>
+          <p class="text-sm text-gray-600 mb-3" id="characterText">Welcome to SimuLock! I'm LockSmith, your guide.</p>
+          <div class="space-y-2">
+            <div class="text-xs text-gray-500 bg-gray-50 p-2 rounded" id="tip1">💡 Click "Auto Simulate" to see me in action!</div>
+            <div class="text-xs text-gray-500 bg-gray-50 p-2 rounded" id="tip2">🔍 I'll help detect and explain deadlocks</div>
+          </div>
+        </div>
+      </div>
+      <div class="modern-card">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-microchip text-blue-500"></i> Processes</h3>
+          <span id="processCountBadge" class="text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded">0</span>
+        </div>
+        <div id="processList" class="mt-3 max-h-64 overflow-y-auto custom-scrollbar"></div>
+      </div>
+
+      <!-- Resources -->
+      <div class="modern-card">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-cubes text-green-500"></i> Resources</h3>
+          <span id="resourceCountBadge" class="text-sm bg-green-50 text-green-700 px-2 py-1 rounded">0</span>
+        </div>
+        <div id="resourceList" class="mt-3 max-h-48 overflow-y-auto custom-scrollbar"></div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT: Visualization + Controls (col-span 9 on lg) -->
+    <section class="lg:col-span-9 space-y-6">
+
+
+
+      <!-- Graph -->
+      <div class="modern-card graph-container p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-gray-800"><i class="fas fa-project-diagram text-purple-500"></i> Resource Allocation Graph</h3>
+          <div class="text-sm text-gray-500">Allocation = solid • Request = dashed</div>
+        </div>
+        <svg id="graphCanvas" width="100%" height="320">
+          <defs>
+            <marker id="arrow-alloc" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#10b981"/>
+            </marker>
+            <marker id="arrow-request" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#ef4444"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+
+      <!-- Controls Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        <!-- System Controls -->
+        <div class="modern-card">
+          <h3 class="font-semibold text-gray-800 mb-2"><i class="fas fa-cogs text-purple-500"></i> System Controls</h3>
+          <div class="space-y-3">
+            <button id="detectDeadlockBtn" class="w-full bg-purple-600 text-white py-2 rounded"><i class="fas fa-search-plus mr-2"></i>Detect Deadlock</button>
+              <button id="autoDetectBtn" class="w-full bg-green-600 text-white py-2 rounded"><i class="fas fa-toggle-on mr-2"></i>Auto Detect: On</button>
+              <button id="recoverBtn" class="w-full bg-yellow-500 text-white py-2 rounded"><i class="fas fa-medkit mr-2"></i>Recover</button>
+            <button id="resetBtn" class="w-full bg-red-600 text-white py-2 rounded"><i class="fas fa-power-off mr-2"></i>Reset Simulation</button>
+          </div>
+        </div>
+
+        <!-- Resource Actions -->
+        <div class="modern-card">
+          <h3 class="font-semibold text-gray-800 mb-2"><i class="fas fa-exchange-alt text-orange-500"></i> Resource Actions</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm text-gray-700">Select Process</label>
+              <select id="processSelect" class="w-full border border-gray-200 rounded p-2">
+                <option value="">Choose a process...</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm text-gray-700">Select Resource</label>
+              <select id="resourceSelect" class="w-full border border-gray-200 rounded p-2">
+                <option value="">Choose a resource...</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="requestResourceBtn" class="bg-orange-500 text-white py-2 rounded"><i class="fas fa-hand-paper mr-2"></i>Request</button>
+              <button id="releaseResourceBtn" class="bg-orange-500 text-white py-2 rounded"><i class="fas fa-handshake mr-2"></i>Release</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PCB Display -->
+        <div class="modern-card">
+          <h3 class="font-semibold text-gray-800 mb-2"><i class="fas fa-microchip text-blue-500"></i> Process Control Block</h3>
+          <div id="pcb-display" class="bg-gray-50 rounded p-3 min-h-[120px] text-sm">
+            <div class="text-center text-gray-400 py-8"><i class="fas fa-microchip text-3xl mb-2"></i><div>Click a process to view PCB</div></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Simulation Logs -->
+      <div class="modern-card">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-terminal text-indigo-500"></i> Simulation Logs</h3>
+          <div class="flex items-center gap-2">
+            <button id="copyLogsBtn" class="text-sm btn-secondary"><i class="fas fa-clipboard mr-1"></i> Copy</button>
+            <button id="downloadLogsBtn" class="text-sm btn-secondary"><i class="fas fa-file-download mr-1"></i> Download</button>
+            <button id="clearLogsBtn" class="text-sm btn-secondary"><i class="fas fa-broom mr-1"></i> Clear</button>
+          </div>
+        </div>
+        <div id="logs" class="mt-3 bg-gray-900 text-green-300 p-3 rounded h-48 overflow-y-auto font-mono text-sm custom-scrollbar">
+          <div>SimuLock initialized successfully!</div>
+          <div>Click "Auto Simulate" for a quick demo</div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Add Resource Modal -->
+  <div id="addResourceModal" class="hidden">
+    <div class="modal-backdrop">
+      <div class="modern-card w-96">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-semibold">Add Resource</h3>
+          <button id="closeAddResourceModal" class="text-gray-500">&times;</button>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="text-sm text-gray-700">Resource Name</label>
+            <input id="newResourceName" class="w-full border p-2 rounded" placeholder="e.g. R1"/>
+          </div>
+          <div>
+            <label class="text-sm text-gray-700">Instances</label>
+            <input id="newResourceInstances" type="number" min="1" value="1" class="w-full border p-2 rounded" />
+          </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button id="cancelAddResource" class="btn-secondary">Cancel</button>
+            <button id="confirmAddResource" class="btn-primary">Add Resource</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recover Modal -->
+  <div id="recoverModal" class="hidden">
+    <div class="modal-backdrop">
+      <div class="modern-card w-96">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-semibold">Recovery Strategy</h3>
+          <button id="closeRecoverModal" class="text-gray-500">&times;</button>
+        </div>
+        <div class="space-y-3">
+          <label class="text-sm text-gray-700">Strategy</label>
+          <select id="recoverStrategySelect" class="w-full border p-2 rounded">
+            <option value="terminate_lowest">Terminate: smallest allocation</option>
+            <option value="terminate_least_progress">Terminate: least progress / random</option>
+            <option value="preempt_min">Preempt minimal resources</option>
+            <option value="rollback_checkpoint">Rollback (simulated)</option>
+          </select>
+          <label class="text-sm text-gray-700">(Optional) Deadlocked processes</label>
+          <input id="recoverDeadlockedInput" class="w-full border p-2 rounded" placeholder="P1,P2"/>
+          <div class="flex justify-end gap-2 pt-2">
+            <button id="recoverCancel" class="btn-secondary">Cancel</button>
+            <button id="recoverConfirm" class="btn-primary">Run Recovery</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="mt-16 bg-gradient-to-r from-slate-900 via-gray-900 to-slate-900 text-white relative overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10"></div>
+    <div class="relative backdrop-blur-sm bg-black/20 border-t border-white/10">
+      <div class="max-w-7xl mx-auto px-6 py-12">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div class="col-span-1 md:col-span-2">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
+                <i class="fas fa-shield-alt text-white text-2xl"></i>
+              </div>
+              <h3 class="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">SimuLock</h3>
+            </div>
+            <p class="text-gray-300 mb-6 leading-relaxed text-lg">Industry-leading deadlock detection and prevention platform engineered for advanced operating systems research, academic institutions, and enterprise-level process synchronization analysis. Delivers comprehensive real-time monitoring with state-of-the-art resource allocation algorithms, intelligent concurrency control mechanisms, and advanced multi-threading support for complex distributed systems.</p>
+          </div>
+          <div class="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+            <h4 class="text-xl font-semibold mb-4 text-white flex items-center gap-2">
+              <i class="fas fa-microchip text-blue-400"></i>
+              Core Features
+            </h4>
+            <ul class="space-y-3 text-gray-300">
+              <li class="flex items-center gap-3"><i class="fas fa-bolt text-yellow-400"></i>Real-time Deadlock Detection & Prevention</li>
+              <li class="flex items-center gap-3"><i class="fas fa-project-diagram text-green-400"></i>Interactive Graph Visualization & Analysis</li>
+              <li class="flex items-center gap-3"><i class="fas fa-play-circle text-blue-400"></i>Automated Simulation Engine & Scenarios</li>
+              <li class="flex items-center gap-3"><i class="fas fa-chart-line text-purple-400"></i>Performance Analytics & Monitoring</li>
+              <li class="flex items-center gap-3"><i class="fas fa-shield-alt text-red-400"></i>Enterprise Security & Compliance</li>
+            </ul>
+          </div>
+          <div class="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+            <h4 class="text-xl font-semibold mb-4 text-white flex items-center gap-2">
+              <i class="fas fa-code text-indigo-400"></i>
+              Lead Developer
+            </h4>
+            <div class="text-center">
+              <div class="mb-4">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mx-auto mb-3 flex items-center justify-center">
+                  <img src="assets/AbhishekGiri.jpg" alt="Abhishek Giri" class="w-16 h-16 rounded-full object-cover">
+                </div>
+                <h5 class="text-lg font-semibold text-white">Abhishek Giri</h5>
+                <p class="text-gray-400 text-sm">Senior Software Engineer & System Architect</p>
+                <p class="text-gray-500 text-xs mt-1">Operating Systems & Concurrency Control Specialist</p>
+                <p class="text-gray-500 text-xs">Advanced Algorithms & Distributed Systems Expert</p>
+              </div>
+              <div class="flex justify-center gap-4">
+                <a href="https://www.linkedin.com/in/abhishek-giri04/" target="_blank" class="w-10 h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110">
+                  <i class="fab fa-linkedin-in text-white"></i>
+                </a>
+                <a href="https://github.com/abhishekgiri04" target="_blank" class="w-10 h-10 bg-gray-800 hover:bg-gray-900 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110">
+                  <i class="fab fa-github text-white"></i>
+                </a>
+                <a href="https://t.me/AbhishekGiri7" target="_blank" class="w-10 h-10 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110">
+                  <i class="fab fa-telegram-plane text-white"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="border-t border-white/10 mt-10 pt-8 flex flex-col md:flex-row justify-between items-center">
+          <div class="flex items-center gap-4 mb-4 md:mb-0">
+            <p class="text-gray-400">© 2025 Abhishek Giri. All rights reserved.</p>
+            <div class="flex items-center gap-2 text-gray-400">
+              <span>Engineered with</span>
+              <i class="fas fa-heart text-red-400 animate-pulse"></i>
+              <span>for Advanced Computing Systems</span>
+            </div>
+          </div>
+          <div class="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10">
+            <p class="text-gray-300 text-sm font-medium">Operating Systems Research & Concurrency Engineering</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- JavaScript: full simulator + UI wiring (keeps original simulator code and integrates nav links) -->
+<script>
+    // Check if coming from loading page
+    if (!sessionStorage.getItem('fromLoading')) {
+        window.location.href = 'loading.html';
+    } else {
+        sessionStorage.removeItem('fromLoading');
+        // Initialize LockSmith immediately after loading page
+        setTimeout(() => {
+            const locksmith = new LockSmithCharacter();
+            window.locksmith = locksmith;
+        }, 500);
+    }
+
+    // small helper to avoid broken anchor styling when on same page
+    (function setActiveNav() {
+      const href = window.location.pathname.split('/').pop() || 'index.html';
+      document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active-link'));
+      const sel = {
+        'index.html':'#navHome',
+        'about.html':'#navAbout',
+        'contact.html':'#navContact',
+        'loading.html':'#navLoading'
+      }[href];
+      if (sel) {
+        const el = document.querySelector(sel);
+        if (el) el.classList.add('active-link');
+      } else {
+        // default to home
+        document.querySelector('#navHome').classList.add('active-link');
+      }
+    })();
+
+    // Graph visualizer (kept same as before)
+    class GraphVisualizer {
+      constructor(svgId) { this.svg = document.getElementById(svgId); }
+      render(processes, resources) {
+        const svg = this.svg; svg.innerHTML = `
+          <defs>
+            <marker id="arrow-alloc" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#10b981"/></marker>
+            <marker id="arrow-request" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ef4444"/></marker>
+          </defs>`;
+        const w = svg.clientWidth || 800;
+        const pCount = processes.length || 1;
+        const rCount = resources.length || 1;
+        const pSpacing = w / (pCount + 1);
+        const rSpacing = w / (rCount + 1);
+
+        const pPos = {}, rPos = {};
+        processes.forEach((p,i)=> {
+          const cx = (i+1)*pSpacing, cy = 70;
+          pPos[p.id] = {x:cx,y:cy};
+          const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+          c.setAttribute('cx',cx); c.setAttribute('cy',cy); c.setAttribute('r',26);
+          c.setAttribute('fill', p.state==='deadlocked' ? '#ef4444' : (p.waiting ? '#f59e0b' : '#3b82f6'));
+          svg.appendChild(c);
+          const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+          t.setAttribute('x',cx); t.setAttribute('y',cy+6); t.setAttribute('text-anchor','middle'); t.setAttribute('fill','#fff'); t.setAttribute('font-size','12'); t.textContent = p.name;
+          svg.appendChild(t);
+        });
+
+        resources.forEach((r,i)=> {
+          const cx = (i+1)*rSpacing, cy = 220;
+          rPos[r.id] = {x:cx,y:cy};
+          const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+          rect.setAttribute('x',cx-36); rect.setAttribute('y',cy-20); rect.setAttribute('width',72); rect.setAttribute('height',36); rect.setAttribute('rx',8);
+          rect.setAttribute('fill', r.availableInstances > 0 ? '#10b981' : '#ef4444');
+          svg.appendChild(rect);
+          const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+          t.setAttribute('x',cx); t.setAttribute('y',cy+6); t.setAttribute('text-anchor','middle'); t.setAttribute('fill','#fff'); t.setAttribute('font-size','12');
+          t.textContent = r.name + ` (${r.availableInstances}/${r.totalInstances})`;
+          svg.appendChild(t);
+        });
+
+        // allocations: resource -> process
+        resources.forEach(r=>{
+          Object.keys(r.allocated || {}).forEach(pid=>{
+            const proc = processes.find(p=>p.id == pid); if(!proc) return;
+            const from = rPos[r.id], to = pPos[proc.id];
+            if (!from || !to) return;
+            const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+            line.setAttribute('x1', from.x); line.setAttribute('y1', from.y-14); line.setAttribute('x2', to.x); line.setAttribute('y2', to.y+14);
+            line.setAttribute('stroke','#10b981'); line.setAttribute('stroke-width','3'); line.setAttribute('marker-end','url(#arrow-alloc)');
+            svg.appendChild(line);
+          });
+        });
+
+        // requests: process -> resource
+        processes.forEach(p=>{
+          Object.keys(p.requested || {}).forEach(rname=>{
+            const r = resources.find(rr=>rr.name === rname); if(!r) return;
+            const from = pPos[p.id], to = rPos[r.id];
+            if (!from || !to) return;
+            const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+            line.setAttribute('x1', from.x); line.setAttribute('y1', from.y+14); line.setAttribute('x2', to.x); line.setAttribute('y2', to.y-14);
+            line.setAttribute('stroke','#ef4444'); line.setAttribute('stroke-width','3'); line.setAttribute('stroke-dasharray','6,6');
+            line.setAttribute('marker-end','url(#arrow-request)');
+            svg.appendChild(line);
+          });
+        });
+      }
+    }
+
+    // Simulator core (keeps your logic)
+    class Simulator {
+      constructor() {
+        this.processes = [];
+        this.resources = [];
+        this.logs = ['SimuLock initialized successfully!', 'Click "Auto Simulate" for a quick demo'];
+        this.autoDetectDeadlock = true;
+        this.nextProcessId = 1;
+        this.nextResourceId = 1;
+        this.graph = new GraphVisualizer('graphCanvas');
+      }
+
+      log(msg) {
+        const ts = new Date().toLocaleTimeString();
+        this.logs.push(`[${ts}] ${msg}`);
+        this.updateLogsUI();
+      }
+
+      addProcess(name) {
+        const p = {
+          id: this.nextProcessId++,
+          pid: Math.floor(Math.random()*10000)+1000,
+          name: name || `P${this.processes.length+1}`,
+          state: 'ready',
+          allocated: {},
+          requested: {},
+          waiting: false,
+          cpuTimeUsed: 0
+        };
+        this.processes.push(p);
+        this.log(`Process ${p.name} (PID:${p.pid}) added`);
+        this.updateUI();
+        return p;
+      }
+
+      addResource(name, instances=1) {
+        const r = {
+          id: this.nextResourceId++,
+          name: name || `R${this.resources.length+1}`,
+          totalInstances: instances,
+          availableInstances: instances,
+          allocated: {}
+        };
+        this.resources.push(r);
+        this.log(`Resource ${r.name} added with ${instances} instance(s)`);
+        this.updateUI();
+        return r;
+      }
+
+      requestResource(processId, resourceId, count=1) {
+        const proc = this.processes.find(p=>p.id===processId);
+        const res = this.resources.find(r=>r.id===resourceId);
+        if (!proc || !res) { this.log('Process or resource not found'); return false; }
+        proc.requested[res.name] = (proc.requested[res.name]||0) + count;
+        proc.waiting = true;
+        proc.state = 'waiting';
+        this.log(`${proc.name} requested ${count} of ${res.name}`);
+        if (res.availableInstances >= count) this.assignResource(proc.id, res.id, count);
+        else this.log(`${proc.name} waiting for ${res.name}...`);
+        if (this.autoDetectDeadlock) setTimeout(()=>this.detectDeadlock(), 100);
+        this.updateUI();
+        return true;
+      }
+
+      assignResource(processId, resourceId, count=1) {
+        const proc = this.processes.find(p=>p.id===processId);
+        const res = this.resources.find(r=>r.id===resourceId);
+        if (!proc || !res) return false;
+        if (res.availableInstances < count) return false;
+        res.availableInstances -= count;
+        res.allocated[proc.id] = (res.allocated[proc.id]||0) + count;
+        proc.allocated[res.name] = (proc.allocated[res.name]||0) + count;
+        if (proc.requested[res.name]) {
+          proc.requested[res.name] -= count;
+          if (proc.requested[res.name] <= 0) { delete proc.requested[res.name]; proc.waiting=false; proc.state='running'; this.log(`${proc.name} acquired ${res.name}`); }
+        }
+        this.log(`Allocated ${count} of ${res.name} to ${proc.name}`);
+        this.autoAssignToWaitingProcesses();
+        this.updateUI();
+        return true;
+      }
+
+      autoAssignToWaitingProcesses() {
+        let assignedAny=false;
+        this.processes.forEach(proc=>{
+          if (proc.waiting) {
+            Object.keys(proc.requested).forEach(rn=>{
+              const r = this.resources.find(rr=>rr.name===rn);
+              if (r && r.availableInstances >= proc.requested[rn]) { this.assignResource(proc.id, r.id, proc.requested[rn]); assignedAny=true; }
+            });
+          }
+        });
+        return assignedAny;
+      }
+
+      releaseResource(processId, resourceId, count=1) {
+        const proc = this.processes.find(p=>p.id===processId);
+        const res = this.resources.find(r=>r.id===resourceId);
+        if (!proc || !res) { this.log('Process or resource not found'); return false; }
+        const allocatedCount = proc.allocated[res.name] || 0;
+        if (allocatedCount < count) { this.log(`${proc.name} lacks ${count} of ${res.name}`); return false; }
+        proc.allocated[res.name] = allocatedCount - count;
+        if (proc.allocated[res.name] <= 0) delete proc.allocated[res.name];
+        res.allocated[proc.id] = (res.allocated[proc.id]||0) - count;
+        if (res.allocated[proc.id] <= 0) delete res.allocated[proc.id];
+        res.availableInstances += count;
+        this.log(`${proc.name} released ${count} of ${res.name}`);
+        const ass = this.autoAssignToWaitingProcesses();
+        if (ass) this.log('Auto-assigned released resources');
+        if (this.autoDetectDeadlock) setTimeout(()=>this.detectDeadlock(), 100);
+        this.updateUI();
+        return true;
+      }
+
+      releaseAllResources(processId) {
+        const proc = this.processes.find(p=>p.id===processId);
+        if (!proc) { this.log('Process not found'); return false; }
+        let released=0;
+        Object.keys(proc.allocated).forEach(rname=>{
+          const res = this.resources.find(rr=>rr.name===rname);
+          if (res) {
+            const cnt = proc.allocated[rname];
+            res.availableInstances += cnt;
+            if (res.allocated && res.allocated[proc.id]) delete res.allocated[proc.id];
+            released += cnt;
+          }
+        });
+        proc.allocated = {};
+        proc.waiting=false; proc.state='ready';
+        this.log(`${proc.name} released all resources (${released})`);
+        this.autoAssignToWaitingProcesses();
+        if (this.autoDetectDeadlock) setTimeout(()=>this.detectDeadlock(), 100);
+        this.updateUI();
+        return true;
+      }
+
+      detectDeadlock() {
+        this.log('Scanning for deadlocks...');
+        this.processes.forEach(p=>{ if (p.state === 'deadlocked') p.state='ready'; });
+        let hasDeadlock=false; const visited=new Set(), stack=new Set(), dead=new Set();
+        const graph={};
+        this.processes.forEach(p=> graph[p.name]={type:'process', edges:new Set()});
+        this.resources.forEach(r=> graph[r.name]={type:'resource', edges:new Set()});
+        this.resources.forEach(r=> Object.keys(r.allocated).forEach(pid=>{ const p = this.processes.find(pp=>pp.id==pid); if (p) graph[r.name].edges.add(p.name); }));
+        this.processes.forEach(p=> Object.keys(p.requested).forEach(rn=>{ if (p.requested[rn] > 0) graph[p.name].edges.add(rn); }));
+        const dfs = (node, path=[]) => {
+          if (stack.has(node)) {
+            const start = path.indexOf(node); const cyc = path.slice(start);
+            cyc.forEach(n=>{ if (graph[n] && graph[n].type === 'process') dead.add(n); });
+            hasDeadlock = true; return;
+          }
+          if (visited.has(node)) return;
+          visited.add(node); stack.add(node);
+          Array.from(graph[node].edges).forEach(nei=>dfs(nei,[...path,node]));
+          stack.delete(node);
+        };
+        Object.keys(graph).forEach(n=>{ if (!visited.has(n)) dfs(n); });
+        dead.forEach(name=>{ const p = this.processes.find(pp=>pp.name === name); if (p) p.state='deadlocked'; });
+        if (hasDeadlock) this.log(`DEADLOCK DETECTED! ${Array.from(dead).join(', ')}`);
+        else this.log('No deadlock detected');
+        this.updateUI();
+        return hasDeadlock;
+      }
+
+      async recoverDeadlock(strategy='terminate_lowest', deadlocked_set=null) {
+        this.log(`Recovery requested: ${strategy} ${deadlocked_set ? '('+deadlocked_set.join(',')+')' : ''}`);
+        // If you have backend /api/recover, we attempted in earlier version. Here fallback to client logic.
+        const deadlocked = deadlocked_set ? this.processes.filter(p=>deadlocked_set.includes(p.name)) : this.processes.filter(p=>p.state==='deadlocked');
+        if (!deadlocked.length) { this.log('No deadlocked processes to recover.'); return; }
+        if (strategy === 'terminate_lowest') {
+          let victim=null, minAlloc=Infinity;
+          deadlocked.forEach(p=> { const c = Object.values(p.allocated).reduce((s,v)=>s+v,0); if (c < minAlloc) { minAlloc=c; victim=p; } });
+          if (victim) { this.log(`Terminating ${victim.name} (alloc ${minAlloc})`); this.releaseAllResources(victim.id); this.processes = this.processes.filter(p=>p.id!==victim.id); this.log(`${victim.name} terminated`); }
+        } else if (strategy === 'terminate_least_progress') {
+          let victim = deadlocked.reduce((a,b)=> a.cpuTimeUsed <= b.cpuTimeUsed ? a : b);
+          this.log(`Terminating ${victim.name} (least progress)`); this.releaseAllResources(victim.id); this.processes = this.processes.filter(p=>p.id!==victim.id); this.log(`${victim.name} terminated`);
+        } else if (strategy === 'preempt_min') {
+          const victim = deadlocked[0];
+          const allocs = Object.keys(victim.allocated);
+          if (allocs.length) {
+            const rname = allocs[0]; const resource = this.resources.find(r=>r.name===rname); const cnt = victim.allocated[rname];
+            this.log(`Preempting ${cnt} of ${rname} from ${victim.name}`); this.releaseResource(victim.id, resource.id, cnt);
+          } else this.log('No allocations to preempt');
+        } else if (strategy === 'rollback_checkpoint') {
+          deadlocked.forEach(p=>{ this.log(`Rolling back ${p.name} to last checkpoint (simulated)`); this.releaseAllResources(p.id); p.state='ready'; });
+        } else this.log('Unknown recovery strategy');
+        setTimeout(()=>this.detectDeadlock(), 400);
+      }
+
+      toggleAutoDetection() {
+        this.autoDetectDeadlock = !this.autoDetectDeadlock;
+        this.log(`Auto-detect ${this.autoDetectDeadlock ? 'enabled' : 'disabled'}`);
+        this.updateUI();
+      }
+
+      autoSimulate() {
+        this.resetSimulation();
+        this.addProcess('P1'); this.addProcess('P2'); this.addResource('R1',1); this.addResource('R2',1);
+        setTimeout(()=>{ this.requestResource(1,1,1); this.requestResource(2,2,1); setTimeout(()=>{ this.requestResource(1,2,1); this.requestResource(2,1,1); setTimeout(()=>this.detectDeadlock(),700); },700); },300);
+      }
+
+      resetSimulation() {
+        this.processes=[]; this.resources=[]; this.nextProcessId=1; this.nextResourceId=1; this.logs=['Simulation reset']; this.updateUI(); this.log('Simulation reset - Ready for new scenario');
+      }
+
+      updateUI() {
+        this.updateProcessList(); this.updateResourceList(); this.updateDropdowns(); this.updateStatistics(); this.graph.render(this.processes, this.resources);
+      }
+
+      updateStatistics() {
+        document.getElementById('processCount').textContent = this.processes.length;
+        document.getElementById('resourceCount').textContent = this.resources.length;
+        document.getElementById('processCountBadge').textContent = this.processes.length;
+        document.getElementById('resourceCountBadge').textContent = this.resources.length;
+        const waiting = this.processes.filter(p=>p.waiting).length, dead = this.processes.filter(p=>p.state==='deadlocked').length;
+        const status = document.getElementById('systemStatus'), statusSmall = document.getElementById('systemStatusSmall');
+        const characterFace = document.getElementById('characterFace');
+        
+        if (dead) { 
+            status.innerHTML = '<div class="w-3 h-3 bg-red-400 rounded-full"></div> Deadlock Detected'; 
+            status.className='text-red-600 font-semibold'; 
+            statusSmall.textContent='Deadlock Detected';
+            if (characterFace) characterFace.src = 'assets/103.png';
+        }
+        else if (waiting) { 
+            status.innerHTML = '<div class="w-3 h-3 bg-yellow-400 rounded-full"></div> Processes Waiting'; 
+            status.className='text-yellow-600 font-semibold'; 
+            statusSmall.textContent='Processes Waiting';
+            if (characterFace) characterFace.src = 'assets/104.png';
+        }
+        else { 
+            status.innerHTML = '<div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div> Active & Ready'; 
+            status.className='text-xl font-bold text-green-400 flex items-center gap-2 justify-center'; 
+            statusSmall.textContent='Operational';
+            if (characterFace) characterFace.src = 'assets/102.png';
+        }
+      }
+
+      updateProcessList() {
+        const container = document.getElementById('processList'); container.innerHTML='';
+        if (!this.processes.length) { container.innerHTML = '<div class="text-center py-6 text-gray-400"><i class="fas fa-inbox text-2xl mb-2"></i><div>No processes yet</div></div>'; return; }
+        this.processes.forEach(p=>{
+          const div = document.createElement('div');
+          const bgClass = p.state === 'deadlocked' ? 'process-deadlocked' : (p.waiting ? 'process-waiting' : 'process-running');
+          div.className = `p-3 mb-2 rounded border ${bgClass} cursor-pointer`;
+          div.innerHTML = `<div class="font-semibold">${p.name} (PID:${p.pid})</div>
+            <div class="text-xs">State: <strong>${p.state}${p.waiting ? ' (waiting)' : ''}</strong></div>
+            <div class="text-xs">Allocated: ${Object.keys(p.allocated).map(r=>`${r}(${p.allocated[r]})`).join(', ') || 'None'}</div>
+            <div class="text-xs">Requested: ${Object.keys(p.requested).map(r=>`${r}(${p.requested[r]})`).join(', ') || 'None'}</div>
+            <div class="mt-2"><button class="release-all-btn text-xs bg-red-500 text-white px-2 py-1 rounded" data-id="${p.id}">Release All</button></div>`;
+          div.addEventListener('click', (e)=>{ 
+            if (!e.target.classList.contains('release-all-btn')) {
+              this.displayPCB(p.id);
+              if (window.locksmith) window.locksmith.speak(`Showing details for ${p.name}`);
+            }
+          });
+          container.appendChild(div);
+        });
+        container.querySelectorAll('.release-all-btn').forEach(btn=>{ btn.addEventListener('click', (e)=>{ e.stopPropagation(); const pid=parseInt(btn.getAttribute('data-id')); this.releaseAllResources(pid); }); });
+      }
+
+      updateResourceList() {
+        const container = document.getElementById('resourceList'); container.innerHTML='';
+        if (!this.resources.length) { container.innerHTML = '<div class="text-center py-4 text-gray-400"><i class="fas fa-cubes text-2xl mb-2"></i><div>No resources yet</div></div>'; return; }
+        this.resources.forEach(r=>{
+          const div = document.createElement('div');
+          const cls = r.availableInstances > 0 ? 'resource-available' : 'resource-allocated';
+          div.className = `p-3 mb-2 rounded border ${cls}`;
+          div.innerHTML = `<div class="font-semibold">${r.name} (ID:${r.id})</div>
+            <div class="text-xs">Available: ${r.availableInstances}/${r.totalInstances}</div>
+            <div class="text-xs">Allocated to: ${Object.keys(r.allocated).map(pid=>`P${pid}(${r.allocated[pid]})`).join(', ') || 'None'}</div>`;
+          container.appendChild(div);
+        });
+      }
+
+      updateDropdowns() {
+        const psel = document.getElementById('processSelect'), rsel = document.getElementById('resourceSelect');
+        psel.innerHTML = '<option value="">Choose a process...</option>'; rsel.innerHTML = '<option value="">Choose a resource...</option>';
+        this.processes.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent = `${p.name} (ID:${p.id})`; psel.appendChild(o); });
+        this.resources.forEach(r=>{ const o=document.createElement('option'); o.value=r.id; o.textContent = `${r.name} (ID:${r.id})`; rsel.appendChild(o); });
+      }
+
+      updateLogsUI() {
+        const c = document.getElementById('logs'); c.innerHTML=''; this.logs.slice(-200).forEach(l=>{ const d=document.createElement('div'); d.textContent=l; d.className='log-item'; c.appendChild(d); }); c.scrollTop = c.scrollHeight;
+      }
+
+      displayPCB(id) {
+        const p = this.processes.find(pp=>pp.id===id); 
+        if(!p) return;
+        const con = document.getElementById('pcb-display');
+        con.innerHTML = `<div class="text-sm space-y-2">
+          <div><strong>Name:</strong> ${p.name} (PID: ${p.pid})</div>
+          <div><strong>State:</strong> ${p.state} ${p.waiting ? '(waiting)' : ''}</div>
+          <div><strong>Allocated:</strong> ${Object.keys(p.allocated).map(r=>`${r}(${p.allocated[r]})`).join(', ') || 'None'}</div>
+          <div><strong>Requested:</strong> ${Object.keys(p.requested).map(r=>`${r}(${p.requested[r]})`).join(', ') || 'None'}</div>
+          <div><strong>CPU used:</strong> ${p.cpuTimeUsed}ms</div>
+        </div>`;
+      }
+    }
+
+    // LockSmith Character Animation
+    class LockSmithCharacter {
+      constructor() {
+        this.faceElement = document.getElementById('characterFace');
+        // Start guide with small delay to ensure elements are ready
+        setTimeout(() => {
+          this.startGuide();
+        }, 100);
+      }
+
+      startGuide() {
+        console.log('Starting LockSmith guide');
+        const textElement = document.getElementById('characterText');
+        if (textElement && this.faceElement) {
+          const message = textElement.textContent;
+          textElement.style.color = '#7c3aed';
+          textElement.style.fontWeight = 'bold';
+          
+          // Text-to-speech
+          const utterance = new SpeechSynthesisUtterance(message);
+          utterance.rate = 0.8;
+          utterance.pitch = 1.1;
+          speechSynthesis.speak(utterance);
+          
+          // Face animation
+          this.faceElement.src = 'assets/105.png';
+          setTimeout(() => {
+            this.faceElement.src = 'assets/101.png';
+            textElement.style.color = '#6b7280';
+            textElement.style.fontWeight = 'normal';
+          }, 4000);
+        }
+      }
+
+      speak(message) {
+        const textElement = document.getElementById('characterText');
+        if (textElement && this.faceElement) {
+          textElement.textContent = message;
+          textElement.style.color = '#7c3aed';
+          textElement.style.fontWeight = 'bold';
+          
+          const utterance = new SpeechSynthesisUtterance(message);
+          utterance.rate = 0.8;
+          utterance.pitch = 1.1;
+          speechSynthesis.speak(utterance);
+          
+          this.faceElement.src = 'assets/105.png';
+          setTimeout(() => {
+            this.faceElement.src = 'assets/101.png';
+            textElement.style.color = '#6b7280';
+            textElement.style.fontWeight = 'normal';
+          }, 3000);
+        }
+      }
+
+      showDeadlock() {
+        if (this.faceElement) {
+          this.faceElement.src = 'assets/103.png'; // side eye for deadlock
+          setTimeout(() => {
+            this.faceElement.src = 'assets/101.png';
+          }, 3000);
+        }
+      }
+
+      showHappy() {
+        if (this.faceElement) {
+          this.faceElement.src = 'assets/102.png'; // happy face
+          setTimeout(() => {
+            this.faceElement.src = 'assets/101.png';
+          }, 2000);
+        }
+      }
+
+      showConflict() {
+        if (this.faceElement) {
+          this.faceElement.src = 'assets/104.png'; // warning state
+          setTimeout(() => {
+            this.faceElement.src = 'assets/101.png';
+          }, 2000);
+        }
+      }
+    }
+
+    // Initialize character
+    let locksmith;
+
+    // instantiate
+    const simulator = new Simulator();
+
+    // UI wiring
+    document.addEventListener('DOMContentLoaded', ()=> {
+      // elements
+      const addProcessBtn = document.getElementById('addProcessBtn');
+      const openAddResourceModalBtn = document.getElementById('openAddResourceModalBtn');
+      const addResourceModal = document.getElementById('addResourceModal');
+      const closeAddResourceModal = document.getElementById('closeAddResourceModal');
+      const cancelAddResource = document.getElementById('cancelAddResource');
+      const confirmAddResource = document.getElementById('confirmAddResource');
+      const newResourceName = document.getElementById('newResourceName');
+      const newResourceInstances = document.getElementById('newResourceInstances');
+
+      const autoSimulateBtn = document.getElementById('autoSimulateBtn');
+      const detectDeadlockBtn = document.getElementById('detectDeadlockBtn');
+      const autoDetectBtn = document.getElementById('autoDetectBtn');
+      const recoverBtn = document.getElementById('recoverBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const requestResourceBtn = document.getElementById('requestResourceBtn');
+      const releaseResourceBtn = document.getElementById('releaseResourceBtn');
+      const clearLogsBtn = document.getElementById('clearLogsBtn');
+      const copyLogsBtn = document.getElementById('copyLogsBtn');
+      const downloadLogsBtn = document.getElementById('downloadLogsBtn');
+
+      const recoverModal = document.getElementById('recoverModal');
+      const closeRecoverModalBtn = document.getElementById('closeRecoverModal');
+      const recoverCancel = document.getElementById('recoverCancel');
+      const recoverConfirm = document.getElementById('recoverConfirm');
+
+      addProcessBtn.addEventListener('click', ()=> {
+        simulator.addProcess();
+        if (window.locksmith) window.locksmith.speak("Great! New process added. Let's see what happens!");
+      });
+      openAddResourceModalBtn.addEventListener('click', ()=> {
+        newResourceName.value = `R${simulator.resources.length+1}`; newResourceInstances.value = 1;
+        addResourceModal.classList.remove('hidden'); addResourceModal.classList.add('modal-backdrop');
+      });
+      closeAddResourceModal.addEventListener('click', ()=> { addResourceModal.classList.add('hidden'); addResourceModal.classList.remove('modal-backdrop'); });
+      cancelAddResource.addEventListener('click', ()=> { addResourceModal.classList.add('hidden'); addResourceModal.classList.remove('modal-backdrop'); });
+      confirmAddResource.addEventListener('click', ()=> {
+        const name = newResourceName.value.trim() || undefined; let instances = parseInt(newResourceInstances.value) || 1; if (instances < 1) instances = 1;
+        simulator.addResource(name, instances);
+        addResourceModal.classList.add('hidden'); addResourceModal.classList.remove('modal-backdrop');
+      });
+
+      autoSimulateBtn.addEventListener('click', ()=> {
+        if (window.locksmith) window.locksmith.speak("Watch carefully! I'm creating a deadlock scenario for you!");
+        simulator.autoSimulate();
+      });
+      detectDeadlockBtn.addEventListener('click', ()=> {
+        const hasDeadlock = simulator.detectDeadlock();
+        const characterFace = document.getElementById('characterFace');
+        if (hasDeadlock) {
+          if (characterFace) characterFace.src = 'assets/103.png';
+          if (window.locksmith) {
+            window.locksmith.speak("Oh no! I found a deadlock! See the red processes?");
+            window.locksmith.startToggling('deadlock');
+          }
+        } else {
+          if (characterFace) characterFace.src = 'assets/102.png';
+          if (window.locksmith) {
+            window.locksmith.speak("Good news! No deadlocks detected. System is safe!");
+            window.locksmith.stopToggling();
+            window.locksmith.showHappy();
+          }
+        }
+      });
+      autoDetectBtn.addEventListener('click', ()=> { simulator.toggleAutoDetection(); autoDetectBtn.textContent = `Auto Detect: ${simulator.autoDetectDeadlock ? 'On' : 'Off'}`; });
+
+      recoverBtn.addEventListener('click', ()=> {
+        const dead = simulator.processes.filter(p=>p.state==='deadlocked').map(p=>p.name);
+        document.getElementById('recoverDeadlockedInput').value = dead.join(',');
+        recoverModal.classList.remove('hidden'); recoverModal.classList.add('modal-backdrop');
+      });
+      closeRecoverModalBtn.addEventListener('click', ()=> { recoverModal.classList.add('hidden'); recoverModal.classList.remove('modal-backdrop'); });
+      recoverCancel.addEventListener('click', ()=> { recoverModal.classList.add('hidden'); recoverModal.classList.remove('modal-backdrop'); });
+      recoverConfirm.addEventListener('click', async ()=> {
+        const strategy = document.getElementById('recoverStrategySelect').value;
+        const text = document.getElementById('recoverDeadlockedInput').value.trim();
+        const deadlocked_set = text ? text.split(',').map(s=>s.trim()).filter(Boolean) : null;
+        recoverModal.classList.add('hidden'); recoverModal.classList.remove('modal-backdrop');
+        await simulator.recoverDeadlock(strategy, deadlocked_set);
+        setTimeout(()=>simulator.detectDeadlock(), 400);
+      });
+
+      resetBtn.addEventListener('click', ()=> {
+        simulator.resetSimulation();
+        if (window.locksmith) window.locksmith.speak("All clean! Ready for a new simulation. What shall we try next?");
+      });
+
+      requestResourceBtn.addEventListener('click', ()=> {
+        const pid = parseInt(document.getElementById('processSelect').value);
+        const rid = parseInt(document.getElementById('resourceSelect').value);
+        if (!pid || !rid) { simulator.log('⚠ Please select process and resource'); return; }
+        simulator.requestResource(pid, rid, 1);
+      });
+
+      releaseResourceBtn.addEventListener('click', ()=> {
+        const pid = parseInt(document.getElementById('processSelect').value);
+        const rid = parseInt(document.getElementById('resourceSelect').value);
+        if (!pid || !rid) { simulator.log('⚠ Please select process and resource'); return; }
+        simulator.releaseResource(pid, rid, 1);
+      });
+
+      clearLogsBtn.addEventListener('click', ()=> { simulator.logs = []; simulator.updateLogsUI(); simulator.log('Logs cleared'); });
+      copyLogsBtn.addEventListener('click', ()=> {
+        try { 
+          navigator.clipboard.writeText(simulator.logs.join('\n')); 
+          // Show professional success message
+          const toast = document.createElement('div');
+          toast.className = 'fixed top-4 right-4 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50 flex items-center gap-3';
+          toast.innerHTML = '<i class="fas fa-check-circle text-green-500"></i><span class="text-gray-800 font-medium">Logs copied to clipboard successfully</span>';
+          document.body.appendChild(toast);
+          setTimeout(() => document.body.removeChild(toast), 3000);
+        } catch(e) { 
+          const toast = document.createElement('div');
+          toast.className = 'fixed top-4 right-4 bg-white border border-red-200 rounded-lg shadow-lg p-4 z-50 flex items-center gap-3';
+          toast.innerHTML = '<i class="fas fa-exclamation-circle text-red-500"></i><span class="text-gray-800 font-medium">Failed to copy logs</span>';
+          document.body.appendChild(toast);
+          setTimeout(() => document.body.removeChild(toast), 3000);
+        }
+      });
+      downloadLogsBtn.addEventListener('click', ()=> {
+        const data = simulator.logs.join('\n');
+        const blob = new Blob([data], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `simulock-logs-${Date.now()}.txt`; a.click(); URL.revokeObjectURL(url);
+      });
+
+      // initial UI
+      simulator.updateUI();
+
+      // small: close modal on Escape
+      document.addEventListener('keydown', (e)=> {
+        if (e.key === 'Escape') {
+          document.querySelectorAll('[id$="Modal"]').forEach(m=>m.classList.add('hidden'));
+        }
+      });
+
+      // keep graph responsive
+      window.addEventListener('resize', () => simulator.graph.render(simulator.processes, simulator.resources));
+    });
+  </script>
+</body>
+</html>
